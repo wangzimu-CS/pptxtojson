@@ -16,7 +16,7 @@ import {
 
 export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
   if (!textBodyNode) return ''
-
+  console.log('(00)-pptxtojson-genTextBody---textBodyNode:', textBodyNode)
   let text = ''
 
   const pFontStyle = getTextByPathList(spNode, ['p:style', 'a:fontRef'])
@@ -117,7 +117,7 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
         } 
         else accumulatedText += styleInfo.text
       }
-
+      console.log('(00)-pptxtojson-genTextBody--accumulatedText:', accumulatedText)
       if (accumulatedText && prevStyleInfo) {
         const processedText = accumulatedText.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
         text += `<span style="${prevStyleInfo.styleText}">${processedText}</span>`
@@ -173,6 +173,8 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   if (lvlNode !== undefined) lvl = parseInt(lvlNode) + 1
 
   let text = node['a:t']
+  console.log('(00)-pptxtojson-genSpanEl---node:', node)
+  console.log('(00)-pptxtojson-genSpanEl---text:', text)
   if (typeof text !== 'string') text = getTextByPathList(node, ['a:fld', 'a:t'])
   if (typeof text !== 'string') text = '&nbsp;'
 

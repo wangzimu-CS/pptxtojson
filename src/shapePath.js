@@ -127,9 +127,17 @@ function shapeSnipRoundRect(w, h, adj1, adj2, shapeType, adjType) {
       adjA = adjB = adjC = adjD = 0
   }
 
+  // if (shapeType === 'round') {
+  //   return `M0,${h / 2 + (1 - adjB) * (h / 2)} Q0,${h} ${adjB * (w / 2)},${h} L${w / 2 + (1 - adjC) * (w / 2)},${h} Q${w},${h} ${w},${h / 2 + (h / 2) * (1 - adjC)} L${w},${(h / 2) * adjD} Q${w},0 ${w / 2 + (w / 2) * (1 - adjD)},0 L${(w / 2) * adjA},0 Q0,0 0,${(h / 2) * (adjA)} z`
+  // } 
   if (shapeType === 'round') {
-    return `M0,${h / 2 + (1 - adjB) * (h / 2)} Q0,${h} ${adjB * (w / 2)},${h} L${w / 2 + (1 - adjC) * (w / 2)},${h} Q${w},${h} ${w},${h / 2 + (h / 2) * (1 - adjC)} L${w},${(h / 2) * adjD} Q${w},0 ${w / 2 + (w / 2) * (1 - adjD)},0 L${(w / 2) * adjA},0 Q0,0 0,${(h / 2) * (adjA)} z`
-  } 
+    // 每个角的圆角半径由adj参数控制
+    const rTopLeft = (h / 2) * adjA
+    const rTopRight = (h / 2) * adjC
+    const rBottomRight = (h / 2) * adjD
+    const rBottomLeft = (h / 2) * adjB
+    return `M0,${h - rTopLeft} C0,${h} ${rTopLeft},${h} ${rTopLeft},${h} L${w - rTopRight},${h} C${w},${h} ${w},${h - rTopRight} ${w},${h - rTopRight} L${w},${rBottomRight} C${w},0 ${w - rBottomRight},0 ${w - rBottomRight},0 L${rBottomLeft},0 C0,0 0,${rBottomLeft} 0,${rBottomLeft} z`
+  }
   else if (shapeType === 'snip') {
     return `M0,${adjA * (h / 2)} L0,${h / 2 + (h / 2) * (1 - adjB)} L${adjB * (w / 2)},${h} L${w / 2 + (w / 2) * (1 - adjC)},${h} L${w},${h / 2 + (h / 2) * (1 - adjC)} L${w},${adjD * (h / 2)} L${w / 2 + (w / 2) * (1 - adjD)},0 L${(w / 2) * adjA},0 z`
   }
@@ -541,13 +549,27 @@ export function getShapePath(shapType, w, h, node) {
       {
         const cx = w / 2
         const cy = h / 2
-        const rx = w / 2
-        const ry = h / 2
+        // const rx = w / 2
+        // const ry = h / 2
 
-        pathData = `M ${cx - rx},${cy} A ${rx},${ry} 0 1,0 ${cx + rx},${cy} A ${rx},${ry} 0 1,0 ${cx - rx},${cy} Z`
+        // pathData = `M ${cx - rx},${cy} A ${rx},${ry/2} 0 1,0 ${cx + rx},${cy} A ${rx},${ry/2} 0 1,0 ${cx - rx},${cy} Z`
+        console.log('(00)-pptxtojson-shapePath-(shapType,pathData):', shapType, pathData)
+        // 椭圆中心坐标
+        // const cx = w / 2;
+        // const cy = h / 2;
+        // 贝塞尔拟合系数（固定值，用于计算控制点，保证椭圆平滑）
+        const k = 0.55228475
+        // 计算四个方向的控制点偏移量
+        const dx = cx * k // 水平方向控制点偏移
+        const dy = cy * k // 垂直方向控制点偏移
+
+        // 拼接路径（格式和你给的示例完全一致：空格分隔、C指令、Z闭合）
+        pathData = `M 0 ${cy} C 0 ${cy - dy} ${cx - dx} 0 ${cx} 0 C ${cx + dx} 0 ${w} ${cy - dy} ${w} ${cy} C ${w} ${cy + dy} ${cx + dx} ${h} ${cx} ${h} C ${cx - dx} ${h} 0 ${cy + dy} 0 ${cy} Z`
+        
 
         if (shapType === 'flowChartOr') {
           pathData += ` M ${w / 2} 0 L ${w / 2} ${h} M 0 ${h / 2} L ${w} ${h / 2}`
+          console.log('(00)-pptxtojson-shapePath-(flowChartOr):', shapType, pathData)
         } 
         else if (shapType === 'flowChartSummingJunction') {
           const angVal = Math.PI / 4
@@ -667,7 +689,9 @@ export function getShapePath(shapType, w, h, node) {
             }
           }
         }
-        pathData = `M0,${h} L${w},${h} L${w},${(h / 2) * sAdj2_val} L${w / 2 + (w / 2) * (1 - sAdj2_val)},0 L${(w / 2) * sAdj1_val},0 Q0,0 0,${(h / 2) * sAdj1_val} z`
+        // pathData = `M0,${h} L${w},${h} L${w},${(h / 2) * sAdj2_val} L${w / 2 + (w / 2) * (1 - sAdj2_val)},0 L${(w / 2) * sAdj1_val},0 Q0,0 0,${(h / 2) * sAdj1_val} z`
+        const rBottomLeft = (h / 2) * sAdj1_val 
+        pathData = `M0,${h} L${w},${h} L${w},${(h / 2) * sAdj2_val} L${w / 2 + (w / 2) * (1 - sAdj2_val)},0 L${rBottomLeft},0 C0,0 0,${rBottomLeft} 0,${rBottomLeft} z`
       }
       break
     case 'bentConnector2':

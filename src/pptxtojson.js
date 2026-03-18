@@ -17,6 +17,7 @@ import { parseTransition, findTransitionNode } from './animation'
 import { getSmartArtTextData } from './diagram'
 
 export async function parse(file) {
+  console.log('(00)-pptxtojson-parse:', 'ok')
   const slides = []
   
   const zip = await JSZip.loadAsync(file)
@@ -108,10 +109,12 @@ async function getTheme(zip) {
     for (let i = 1; i <= 6; i++) {
       if (clrScheme[`a:accent${i}`] === undefined) break
       const color = getTextByPathList(clrScheme, [`a:accent${i}`, 'a:srgbClr', 'attrs', 'val'])
+      console.log('(00)-pptxtojson---getTheme-color:', color)
+      console.log('(00)-pptxtojson---getTheme-color=clrScheme:', clrScheme)
       if (color) themeColors.push('#' + color)
     }
   }
-
+  console.log('(00)-pptxtojson---getTheme-[themeContent, themeColors]:', themeContent, themeColors)
   return { themeContent, themeColors }
 }
 
@@ -299,6 +302,8 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
   const tableStyles = await readXmlFile(zip, 'ppt/tableStyles.xml')
 
   const slideContent = await readXmlFile(zip, sldFileName)
+  console.log('(00)-pptxtojson-processSingleSlide---zip, sldFileName:', sldFileName, zip)
+  console.log('(00)-pptxtojson-processSingleSlide---slideContent:', slideContent)
   const nodes = slideContent['p:sld']['p:cSld']['p:spTree']
   const warpObj = {
     zip,
@@ -323,6 +328,7 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
   const fill = await getSlideBackgroundFill(warpObj)
 
   const elements = []
+  console.log('(00)-pptxtojson-processSingleSlide---nodes:', nodes)
   for (const nodeKey in nodes) {
     if (nodes[nodeKey].constructor !== Array) nodes[nodeKey] = [nodes[nodeKey]]
     for (const node of nodes[nodeKey]) {
@@ -564,7 +570,31 @@ async function processNodesInSlide(nodeKey, nodeValue, warpObj, source, groupHie
       break
     default:
   }
-
+  if (['p:sp', 'p:cxnSp', 'p:pic', 'p:graphicFrame', 'p:grpSp', 'mc:AlternateContent'].includes(nodeKey)) {
+    let targetKey = nodeKey.replace('p:', '')
+    const parserFirst = (str) => {
+      if (!str) return str
+      const [first, ...rest] = str 
+      return first.toUpperCase() + rest.join('')
+    }
+    targetKey = parserFirst(targetKey)
+    if ( nodeKey === 'p:cxnSp' ) {
+      targetKey = 'Sp'
+    }
+    const id = getTextByPathList(nodeValue, [`p:nv${targetKey}Pr`, 'p:cNvPr', 'attrs', 'id'])
+    const pr = getTextByPathList(nodeValue, ['p:spPr'])
+    const useBgFill = getTextByPathList(nodeValue, ['attrs', 'useBgFill'])
+    // console.log('(00)-pptxtojson-processNodesInSlide-----[nodeKey,id,nodeValue]:', nodeKey, id, nodeValue)
+    // console.log('(00)-pptxtojson-processNodesInSlide-----[nodeKey,id,useBgFill,pr]:', nodeKey, id, useBgFill, pr)
+    if (id) {
+      json.id = id
+    }
+    if (pr) {
+      json.propertySettings = useBgFill ? {...pr, useBgFill: true } : pr 
+    }
+    // console.log('(00)-pptxtojson-processNodesInSlide-----json.propertySettings:', json.propertySettings)
+  }
+  console.log('(00)-pptxtojson-processNodesInSlide-json:', json)
   return json
 }
 
@@ -685,8 +715,10 @@ async function processGroupSpNode(node, warpObj, source, parentGroupHierarchy = 
 }
 
 async function processSpNode(node, warpObj, source, groupHierarchy = []) {
+  const name = getTextByPathList(node, ['p:nvSpPr', 'p:cNvPr', 'attrs', 'name'])
+  const id = getTextByPathList(node, ['p:nvSpPr', 'p:cNvPr', 'attrs', 'id'])
   const cNvPr = getTextByPathList(node, ['p:nvSpPr', 'p:cNvPr'])
-  const name = getTextByPathList(cNvPr, ['attrs', 'name'])
+  // const name = getTextByPathList(cNvPr, ['attrs', 'name'])
   const idx = getTextByPathList(node, ['p:nvSpPr', 'p:nvPr', 'p:ph', 'attrs', 'idx'])
   let type = getTextByPathList(node, ['p:nvSpPr', 'p:nvPr', 'p:ph', 'attrs', 'type'])
   const order = getTextByPathList(node, ['attrs', 'order'])
@@ -724,20 +756,22 @@ async function processSpNode(node, warpObj, source, groupHierarchy = []) {
 
   const link = getHyperlinkFromCNvPr(cNvPr, warpObj)
 
-  return await genShape(node, slideLayoutSpNode, slideMasterSpNode, name, type, order, warpObj, source, link, groupHierarchy)
+  return await genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, type, order, warpObj, source, link, groupHierarchy, id)
 }
 
 async function processCxnSpNode(node, warpObj, source) {
+  const name = node['p:nvCxnSpPr']['p:cNvPr']['attrs']['name']
+  const id = node['p:nvCxnSpPr']['p:cNvPr']['attrs']['id']
   const cNvPr = getTextByPathList(node, ['p:nvCxnSpPr', 'p:cNvPr'])
-  const name = getTextByPathList(cNvPr, ['attrs', 'name'])
+  // const name = getTextByPathList(cNvPr, ['attrs', 'name'])
   const type = (node['p:nvCxnSpPr']['p:nvPr']['p:ph'] === undefined) ? undefined : node['p:nvCxnSpPr']['p:nvPr']['p:ph']['attrs']['type']
   const order = node['attrs']['order']
   const link = getHyperlinkFromCNvPr(cNvPr, warpObj)
 
-  return await genShape(node, undefined, undefined, name, type, order, warpObj, source, link)
+  return await genShape(node, undefined, undefined, name, id, type, order, warpObj, source, link)
 }
 
-async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, type, order, warpObj, source, link, groupHierarchy = []) {
+async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, type, order, warpObj, source, link, groupHierarchy = []) {
   const xfrmList = ['p:spPr', 'a:xfrm']
   const slideXfrmNode = getTextByPathList(node, xfrmList)
   const slideLayoutXfrmNode = getTextByPathList(slideLayoutSpNode, xfrmList)
@@ -779,7 +813,7 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, type, 
 
   let content = ''
   if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
-
+  console.log('(00)-pptxtojson-genShape-content:', content)
   const { borderColor, borderWidth, borderType, strokeDasharray } = getBorder(node, type, warpObj)
   const fill = await getShapeFill(node, warpObj, source, groupHierarchy)
 
@@ -807,6 +841,7 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, type, 
     rotate,
     vAlign,
     name,
+    id,
     order,
   }
 
@@ -833,7 +868,7 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, type, 
 
   let shapePath = ''
   if (shapType) shapePath = getShapePath(shapType, width, height, node)
-
+  console.log('(00)-pptxtojson-genShape:--shapType:', shapType)
   if (shapType && (type === 'obj' || !type || shapType !== 'rect')) {
     if (!isHasValidText) data.content = ''
     return {
