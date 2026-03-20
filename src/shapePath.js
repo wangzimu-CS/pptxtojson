@@ -3,7 +3,678 @@
 import { RATIO_EMUs_Points } from './constants'
 import { getTextByPathList } from './utils'
 
+// // ------------------- 核心求解函数（最终修正版） -------------------
+// function getBezierPointByAngle(bezierPoints, refPoint, targetAngle) {
+//   const { x0, y0, x1, y1, x2, y2, x3, y3 } = bezierPoints
+//   const { qx, qy } = refPoint
+//   const targetAngleRad = targetAngle * Math.PI / 180
+
+//   // 贝塞尔曲线多项式系数
+//   const ax = x3 - 3 * x2 + 3 * x1 - x0
+//   const bx = 3 * x2 - 6 * x1 + 3 * x0
+//   const cx = 3 * x1 - 3 * x0
+//   const dx = x0
+
+//   const ay = y3 - 3 * y2 + 3 * y1 - y0
+//   const by = 3 * y2 - 6 * y1 + 3 * y0
+//   const cy = 3 * y1 - 3 * y0
+//   const dy = y0
+
+//   // 计算曲线上某点P(t)的坐标
+//   const getPoint = (t) => ({
+//     x: ax * t * t * t + bx * t * t + cx * t + dx,
+//     y: ay * t * t * t + by * t * t + cy * t + dy
+//   })
+
+//   // 夹角误差函数：Q→P0 与 Q→P(t) 的夹角 - 目标夹角
+//   const f = (t) => {
+//     const { x: xt, y: yt } = getPoint(t)
+                
+//     // 向量1：Q → P0
+//     const v1x = x0 - qx
+//     const v1y = y0 - qy
+//     // 向量2：Q → P(t)
+//     const v2x = xt - qx
+//     const v2y = yt - qy
+
+//     const dotProduct = v1x * v2x + v1y * v2y
+//     const v1Len = Math.hypot(v1x, v1y)
+//     const v2Len = Math.hypot(v2x, v2y)
+
+//     if (v1Len < 1e-9 || v2Len < 1e-9) return Math.PI
+
+//     const actualAngle = Math.acos(Math.max(-1, Math.min(1, dotProduct / (v1Len * v2Len))))
+//     return actualAngle - targetAngleRad
+//   }
+
+//   // 牛顿迭代求解
+//   const maxIterations = 100
+//   const epsilon = 1e-6
+//   let t = 0.5
+
+//   const dfdt = (t, h = 1e-5) => (f(t + h) - f(t - h)) / (2 * h)
+
+//   for (let i = 0; i < maxIterations; i++) {
+//     const ft = f(t)
+//     if (Math.abs(ft) < epsilon) {
+//       return getPoint(t)
+//     }
+//     const dft = dfdt(t)
+//     if (Math.abs(dft) < 1e-9) {
+//       t += 0.01
+//       continue
+//     }
+//     t -= ft / dft
+//     t = Math.max(0.001, Math.min(0.999, t))
+//   }
+
+//   return null
+// }
+
+// // ------------------- 基础德卡斯特里奥算法：分割贝塞尔曲线 -------------------
+// function splitBezier(bezier, t) {
+//   const [p0, p1, p2, p3] = bezier
+//   const t1 = 1 - t
+
+//   // 第一层插值
+//   const b01 = [p0[0] * t1 + p1[0] * t, p0[1] * t1 + p1[1] * t]
+//   const b12 = [p1[0] * t1 + p2[0] * t, p1[1] * t1 + p2[1] * t]
+//   const b23 = [p2[0] * t1 + p3[0] * t, p2[1] * t1 + p3[1] * t]
+
+//   // 第二层插值
+//   const b012 = [b01[0] * t1 + b12[0] * t, b01[1] * t1 + b12[1] * t]
+//   const b123 = [b12[0] * t1 + b23[0] * t, b12[1] * t1 + b23[1] * t]
+
+//   // 最终分割点
+//   const splitPoint = [b012[0] * t1 + b123[0] * t, b012[1] * t1 + b123[1] * t]
+
+//   // 返回两段完整的三次贝塞尔曲线
+//   return {
+//     left: [p0, b01, b012, splitPoint], // 0~t 段
+//     right: [splitPoint, b123, b23, p3] // t~1 段
+//   }
+// }
+
+// // ------------------- 截取[tStart, tEnd]区间的曲线段 -------------------
+// function cutBezier(bezier, tStart, tEnd) {
+//   // 先截取0~tEnd
+//   const { left: part0ToEnd } = splitBezier(bezier, tEnd)
+//   // 反转曲线，截取对应tStart的部分
+//   const reversed = [...part0ToEnd].reverse()
+//   const tRev = 1 - (tEnd - tStart) / tEnd
+//   const { right: partRev } = splitBezier(reversed, tRev)
+//   // 反转回来得到最终结果
+//   return partRev.reverse()
+// }
+
+// // ------------------- 角度转t值 -------------------
+// function angleToT(angle, minAngle, maxAngle) {
+//   return (angle - minAngle) / (maxAngle - minAngle)
+// }
+
+// // ------------------- 核心生成函数 -------------------
+// function generatePath(H, w, adj1, adj2, isClose) {
+//   const centerX = w / 2
+//   const centerY = H / 2
+
+//   // 4个象限的原始贝塞尔曲线（90°每段）
+//   const quads = [
+//     { min: 0, max: 90, curve: [[w, centerY], [w, H], [centerX, H], [centerX, H]] },
+//     { min: 90, max: 180, curve: [[centerX, H], [0, H], [0, centerY], [0, centerY]] },
+//     { min: 180, max: 270, curve: [[0, centerY], [0, 0], [centerX, 0], [centerX, 0]] },
+//     { min: 270, max: 360, curve: [[centerX, 0], [w, 0], [w, centerY], [w, centerY]] }
+//   ]
+
+//   let currentAngle = adj1 % 360
+//   let remaining = adj2
+//   const path = []
+//   let first = null
+//   let last = null
+//   const keyPoints = { start: null, end: null, controls: [] }
+
+//   while (remaining > 0.1) {
+//     const quad = quads.find(q => currentAngle >= q.min && currentAngle < q.max)
+//     if (!quad) break
+
+//     const maxUse = Math.min(quad.max - currentAngle, remaining)
+//     const endAngle = currentAngle + maxUse
+//     const tStart = angleToT(currentAngle, quad.min, quad.max)
+//     const tEnd = angleToT(endAngle, quad.min, quad.max)
+
+//     let curve
+//     if (tStart === 0 && tEnd === 1) {
+//       // 全跨区域：用原始曲线
+//       curve = quad.curve
+//     }
+//     else {
+//       // 非全跨区域：截取曲线段
+//       curve = cutBezier(quad.curve, tStart, tEnd)
+//     }
+
+//     const [start, c1, c2, end] = curve
+
+//     // 生成Path指令
+//     if (!first) {
+//       first = start
+//       last = end
+//       keyPoints.start = start
+//       path.push(`M ${start[0].toFixed(6)} ${start[1].toFixed(6)}`)
+//     }
+//     else {
+//       if (Math.hypot(start[0] - last[0], start[1] - last[1]) > 0.1) {
+//         path.push(`L ${start[0].toFixed(6)} ${start[1].toFixed(6)}`)
+//       }
+//       last = end
+//     }
+
+//     path.push(`C ${c1[0].toFixed(6)} ${c1[1].toFixed(6)}, ${c2[0].toFixed(6)} ${c2[1].toFixed(6)}, ${end[0].toFixed(6)} ${end[1].toFixed(6)}`)
+//     keyPoints.controls.push({ c1, c2, isCut: !(tStart === 0 && tEnd === 1) })
+
+//     currentAngle = endAngle
+//     remaining -= maxUse
+//   }
+
+//   keyPoints.end = last
+
+//   // 闭合路径
+//   if (first && last) {
+//     if (isClose) {
+//       path.push(`L ${centerX.toFixed(6)} ${centerY.toFixed(6)}`)
+//       path.push(`L ${first[0].toFixed(6)} ${first[1].toFixed(6)}`)
+//     }
+//     else {
+//       path.push(`L ${first[0].toFixed(6)} ${first[1].toFixed(6)}`)
+//     }
+//     path.push('Z')
+//   }
+
+//   return { pathCode: path.join('\n'), keyPoints }
+// }
+
+// // ========== 核心：使用你指定的贝塞尔曲线分割算法 ==========
+// /**
+//          * 德卡斯特里奥算法 - 计算贝塞尔曲线在t处的点和分割后的控制点
+//          * @param {number} t 分割比例
+//          * @param {Array} points 原始点数组 [x0,y0, x1,y1, x2,y2, x3,y3]
+//          * @returns {Object} 包含分割后的左右两段曲线的控制点
+//          */
+// function deCasteljau(t, points) {
+//   const [x0, y0, x1, y1, x2, y2, x3, y3] = points
+//   const t1 = 1 - t
+
+//   // 第一层插值
+//   const aX = x0 * t1 + x1 * t
+//   const aY = y0 * t1 + y1 * t
+//   const bX = x1 * t1 + x2 * t
+//   const bY = y1 * t1 + y2 * t
+//   const cX = x2 * t1 + x3 * t
+//   const cY = y2 * t1 + y3 * t
+
+//   // 第二层插值
+//   const dX = aX * t1 + bX * t
+//   const dY = aY * t1 + bY * t
+//   const eX = bX * t1 + cX * t
+//   const eY = bY * t1 + cY * t
+
+//   // 第三层插值（分割点）
+//   const fX = dX * t1 + eX * t
+//   const fY = dY * t1 + eY * t
+
+//   // 返回左右两段曲线的控制点
+//   return {
+//     left: [x0, y0, aX, aY, dX, dY, fX, fY], // 0~t段
+//     right: [fX, fY, eX, eY, cX, cY, x3, y3], // t~1段
+//     splitPoint: [fX, fY]
+//   }
+// }
+
+// /**
+//          * 截取贝塞尔曲线的任意区间 [tStart, tEnd]
+//          * @param {Array} originalPoints 原曲线控制点 [x0,y0,x1,y1,x2,y2,x3,y3]
+//          * @param {number} tStart 起始比例 (0~1)
+//          * @param {number} tEnd 结束比例 (0~1)
+//          * @returns {Object} 包含新曲线指令和控制点的对象
+//          */
+// function cutBezierCurve(originalPoints, tStart, tEnd) {
+//   // 边界处理
+//   if (tStart >= tEnd) return { path: '', points: [] }
+            
+//   let finalCurve
+//   if (tStart === 0) {
+//     // 从起点开始截取：直接分割0~tEnd段
+//     const { left } = deCasteljau(tEnd, originalPoints)
+//     finalCurve = left
+//   }
+//   else {
+//     // 1. 先分割出 0~tEnd 段
+//     const { left: tillEnd } = deCasteljau(tEnd, originalPoints)
+//     // 2. 计算在0~tEnd段中，tStart对应的相对比例
+//     const relativeT = tStart / tEnd
+//     // 3. 从0~tEnd段中分割出 relativeT~1 段（即原曲线的tStart~tEnd段）
+//     const { right: tempCurve } = deCasteljau(relativeT, tillEnd)
+//     finalCurve = tempCurve
+//   }
+
+//   // 生成新曲线路径指令
+//   const pathCmd = `M ${finalCurve[0]} ${finalCurve[1]} C ${finalCurve[2]} ${finalCurve[3]} ${finalCurve[4]} ${finalCurve[5]} ${finalCurve[6]} ${finalCurve[7]}`
+            
+//   // 解析控制点（适配原有逻辑的格式）
+//   const points = [
+//     [finalCurve[0], finalCurve[1]], // 起点
+//     [finalCurve[2], finalCurve[3]], // 控制点1
+//     [finalCurve[4], finalCurve[5]], // 控制点2
+//     [finalCurve[6], finalCurve[7]] // 终点
+//   ]
+
+//   return {
+//     path: pathCmd,
+//     points: points
+//   }
+// }
+
+// // ------------------- 角度转t值 -------------------
+// function angleToT(angle, minAngle, maxAngle) {
+//   return (angle - minAngle) / (maxAngle - minAngle)
+// }
+
+// // ------------------- 核心生成函数 -------------------
+// function generatePath(H, w, adj1, adj2, isClose) {
+//   const centerX = w / 2
+//   const centerY = H / 2
+
+//   // 4个象限的原始贝塞尔曲线（90°每段）- 转换为指定算法的格式 [x0,y0,x1,y1,x2,y2,x3,y3]
+//   const quads = [
+//     { 
+//       min: 0, max: 90, 
+//       curve: [w, centerY, w, H, centerX, H, centerX, H], // 原格式转一维数组
+//       curve2d: [[w, centerY], [w, H], [centerX, H], [centerX, H]] // 保留原有2D格式
+//     },
+//     { 
+//       min: 90, max: 180, 
+//       curve: [centerX, H, 0, H, 0, centerY, 0, centerY],
+//       curve2d: [[centerX, H], [0, H], [0, centerY], [0, centerY]]
+//     },
+//     { 
+//       min: 180, max: 270, 
+//       curve: [0, centerY, 0, 0, centerX, 0, centerX, 0],
+//       curve2d: [[0, centerY], [0, 0], [centerX, 0], [centerX, 0]]
+//     },
+//     { 
+//       min: 270, max: 360, 
+//       curve: [centerX, 0, w, 0, w, centerY, w, centerY],
+//       curve2d: [[centerX, 0], [w, 0], [w, centerY], [w, centerY]]
+//     }
+//   ]
+
+//   let currentAngle = adj1 % 360
+//   let remaining = adj2
+//   const path = []
+//   let first = null
+//   let last = null
+//   const keyPoints = { start: null, end: null, controls: [] }
+
+//   while (remaining > 0.1) {
+//     const quad = quads.find(q => currentAngle >= q.min && currentAngle < q.max)
+//     if (!quad) break
+
+//     const maxUse = Math.min(quad.max - currentAngle, remaining)
+//     const endAngle = currentAngle + maxUse
+//     const tStart = angleToT(currentAngle, quad.min, quad.max)
+//     const tEnd = angleToT(endAngle, quad.min, quad.max)
+
+//     // let curve, curvePoints
+//     let curvePoints
+//     if (tStart === 0 && tEnd === 1) {
+//       // 全跨区域：用原始曲线
+//       curvePoints = quad.curve2d
+//       // 生成原始曲线的Path指令
+//       // const [start, c1, c2, end] = curvePoints
+//       // curve = `M ${start[0]} ${start[1]} C ${c1[0]} ${c1[1]}, ${c2[0]} ${c2[1]}, ${end[0]} ${end[1]}`
+//     }
+//     else {
+//       // 非全跨区域：使用你指定的截取函数，来源是本段全域曲线
+//       const cutResult = cutBezierCurve(quad.curve, tStart, tEnd)
+//       // curve = cutResult.path
+//       curvePoints = cutResult.points
+//     }
+
+//     if (curvePoints.length === 0) break
+
+//     const [start, c1, c2, end] = curvePoints
+
+//     // 生成Path指令（适配原有拼接逻辑）
+//     if (!first) {
+//       first = start
+//       last = end
+//       keyPoints.start = start
+//       // 仅保留M指令（避免重复）
+//       path.push(`M ${start[0].toFixed(6)} ${start[1].toFixed(6)}`)
+//       // 添加C指令
+//       path.push(`C ${c1[0].toFixed(6)} ${c1[1].toFixed(6)}, ${c2[0].toFixed(6)} ${c2[1].toFixed(6)}, ${end[0].toFixed(6)} ${end[1].toFixed(6)}`)
+//     }
+//     else {
+//       // 衔接上一段终点
+//       if (Math.hypot(start[0] - last[0], start[1] - last[1]) > 0.1) {
+//         path.push(`L ${start[0].toFixed(6)} ${start[1].toFixed(6)}`)
+//       }
+//       last = end
+//       // 添加C指令
+//       path.push(`C ${c1[0].toFixed(6)} ${c1[1].toFixed(6)}, ${c2[0].toFixed(6)} ${c2[1].toFixed(6)}, ${end[0].toFixed(6)} ${end[1].toFixed(6)}`)
+//     }
+
+//     keyPoints.controls.push({ c1, c2, isCut: !(tStart === 0 && tEnd === 1) })
+
+//     currentAngle = endAngle
+//     remaining -= maxUse
+//   }
+
+//   keyPoints.end = last
+
+//   // 闭合路径
+//   if (first && last) {
+//     if (isClose) {
+//       path.push(`L ${centerX.toFixed(6)} ${centerY.toFixed(6)}`)
+//       path.push(`L ${first[0].toFixed(6)} ${first[1].toFixed(6)}`)
+//     }
+//     else {
+//       path.push(`L ${first[0].toFixed(6)} ${first[1].toFixed(6)}`)
+//     }
+//     path.push('Z')
+//   }
+
+//   return { pathCode: path.join('\n'), keyPoints }
+// }
+
+// ===================== 核心逻辑梳理：全链路精准控制 =====================
+// 核心原则：
+// 1. 角度系统：0°(右)→90°(下)→180°(左)→270°(上)→360°(右)，顺时针
+// 2. 象限划分：4个90°象限，每个象限对应一条完整的三次贝塞尔曲线
+// 3. 截取规则：
+//    - 全跨象限（tStart=0 且 tEnd=1）：直接使用原始曲线
+//    - 非全跨象限：用德卡斯特里奥算法截取，截取范围严格对应角度范围
+//    - 截取来源：始终是当前象限的完整曲线，保证角度匹配
+
+// ========== 1. 德卡斯特里奥算法（标准实现，一维数组格式） ==========
+/**
+         * 德卡斯特里奥算法 - 分割贝塞尔曲线
+         * @param {number} t 分割比例 (0~1)
+         * @param {Array} points 原始曲线控制点 [x0,y0,x1,y1,x2,y2,x3,y3]
+         * @returns {Object} left(0~t段)、right(t~1段)、splitPoint(分割点)
+         */
+function deCasteljau(t, points) {
+  const [x0, y0, x1, y1, x2, y2, x3, y3] = points
+  const t1 = 1 - t
+
+  // 三层插值计算（严格遵循德卡斯特里奥规则）
+  const aX = x0 * t1 + x1 * t; const aY = y0 * t1 + y1 * t
+  const bX = x1 * t1 + x2 * t; const bY = y1 * t1 + y2 * t
+  const cX = x2 * t1 + x3 * t; const cY = y2 * t1 + y3 * t
+
+  const dX = aX * t1 + bX * t; const dY = aY * t1 + bY * t
+  const eX = bX * t1 + cX * t; const eY = bY * t1 + cY * t
+
+  const fX = dX * t1 + eX * t; const fY = dY * t1 + eY * t
+
+  return {
+    left: [x0, y0, aX, aY, dX, dY, fX, fY], // 0~t 段曲线
+    right: [fX, fY, eX, eY, cX, cY, x3, y3], // t~1 段曲线
+    splitPoint: [fX, fY] // 分割点坐标
+  }
+}
+
+/**
+         * 精准截取贝塞尔曲线的 [tStart, tEnd] 区间
+         * @param {Array} originalPoints 原始曲线 [x0,y0,x1,y1,x2,y2,x3,y3]
+         * @param {number} tStart 起始比例 (0~1)
+         * @param {number} tEnd 结束比例 (0~1)
+         * @returns {Object} 截取后的曲线信息（路径指令+控制点）
+         */
+function cutBezierCurve(originalPoints, tStart, tEnd) {
+  // 边界校验：保证t范围有效
+  if (tStart >= tEnd || tStart < 0 || tEnd > 1) {
+    return { path: '', points: [], startPoint: [], endPoint: [] }
+  }
+
+  let targetCurve
+  if (tStart === 0) {
+    // 从起点开始截取：直接取0~tEnd段
+    targetCurve = deCasteljau(tEnd, originalPoints).left
+  }
+  else {
+    // 步骤1：先截取0~tEnd段
+    const tillEnd = deCasteljau(tEnd, originalPoints).left
+    // 步骤2：计算相对比例（关键：保证截取范围精准）
+    const relativeT = tStart / tEnd
+    // 步骤3：从0~tEnd段中截取relativeT~1段（对应原曲线tStart~tEnd）
+    targetCurve = deCasteljau(relativeT, tillEnd).right
+  }
+
+  // 解析关键信息（供后续使用）
+  const startPoint = [targetCurve[0], targetCurve[1]] // 截取段起点
+  const endPoint = [targetCurve[6], targetCurve[7]] // 截取段终点
+  const ctrl1 = [targetCurve[2], targetCurve[3]] // 控制点1
+  const ctrl2 = [targetCurve[4], targetCurve[5]] // 控制点2
+
+  // 生成Path指令（仅C指令，M指令统一在外部管理）
+  const pathCmd = `C ${ctrl1[0].toFixed(6)} ${ctrl1[1].toFixed(6)}, ${ctrl2[0].toFixed(6)} ${ctrl2[1].toFixed(6)}, ${endPoint[0].toFixed(6)} ${endPoint[1].toFixed(6)}`
+
+  return {
+    path: pathCmd, // 路径指令（C开头）
+    points: [startPoint, ctrl1, ctrl2, endPoint], // 控制点数组
+    startPoint: startPoint, // 截取段起点
+    endPoint: endPoint // 截取段终点
+  }
+}
+
+// ========== 2. 角度与t值的精准映射（核心：保证角度→t值无偏差） ==========
+/**
+         * 角度转t值（严格映射当前象限的角度范围到0~1）
+         * @param {number} angle 目标角度 (°)
+         * @param {number} quadMin 象限最小角度 (°)
+         * @param {number} quadMax 象限最大角度 (°)
+         * @returns {number} t值 (0~1)
+         */
+function angleToT(angle, quadMin, quadMax) {
+  // 边界处理：保证t值在0~1范围内
+  if (angle <= quadMin) return 0
+  if (angle >= quadMax) return 1
+  // 线性映射：(角度-象限最小值)/(象限范围) = t值
+  return (angle - quadMin) / (quadMax - quadMin)
+}
+
+// ========== 3. 象限曲线定义（精准匹配角度的贝塞尔曲线） ==========
+/**
+         * 生成4个象限的完整贝塞尔曲线（匹配角度系统）
+         * @param {number} w 容器宽度
+         * @param {number} H 容器高度
+         * @returns {Array} 象限曲线数组
+         */
+function getQuadCurves(w, H) {
+  const centerX = w / 2
+  const centerY = H / 2
+
+  // 每个象限：角度范围 + 完整贝塞尔曲线（一维数组） + 曲线描述
+  return [
+    // 象限1：0°(右中点) → 90°(下中点)（顺时针）
+    {
+      minAngle: 0,
+      maxAngle: 90,
+      curve: [
+        w, centerY, // P0: 0° 右中点（起点）
+        w, H, // P1: 控制点1（右下）
+        centerX, H, // P2: 控制点2（下中右）
+        centerX, H // P3: 90° 下中点（终点）
+      ],
+      desc: '0°→90°（右→下）'
+    },
+    // 象限2：90°(下中点) → 180°(左中点)
+    {
+      minAngle: 90,
+      maxAngle: 180,
+      curve: [
+        centerX, H, // P0: 90° 下中点（起点）
+        0, H, // P1: 控制点1（下左）
+        0, centerY, // P2: 控制点2（左中下）
+        0, centerY // P3: 180° 左中点（终点）
+      ],
+      desc: '90°→180°（下→左）'
+    },
+    // 象限3：180°(左中点) → 270°(上中点)
+    {
+      minAngle: 180,
+      maxAngle: 270,
+      curve: [
+        0, centerY, // P0: 180° 左中点（起点）
+        0, 0, // P1: 控制点1（左上）
+        centerX, 0, // P2: 控制点2（上中左）
+        centerX, 0 // P3: 270° 上中点（终点）
+      ],
+      desc: '180°→270°（左→上）'
+    },
+    // 象限4：270°(上中点) → 360°(右中点)
+    {
+      minAngle: 270,
+      maxAngle: 360,
+      curve: [
+        centerX, 0, // P0: 270° 上中点（起点）
+        w, 0, // P1: 控制点1（右上）
+        w, centerY, // P2: 控制点2（右中上）
+        w, centerY // P3: 360° 右中点（终点）
+      ],
+      desc: '270°→360°（上→右）'
+    }
+  ]
+}
+
+// ========== 4. 核心生成函数（全链路角度匹配） ==========
+/**
+         * 生成匹配指定角度范围的贝塞尔曲线路径
+         * @param {number} H 容器高度
+         * @param {number} w 容器宽度
+         * @param {number} startAngle 起始角度 (°)
+         * @param {number} spanAngle 跨度角度 (°)
+         * @param {boolean} isClose 是否经中心点闭合
+         * @returns {Object} 路径代码 + 关键点位信息
+         */
+function generateBezierPath(H, w, startAngle, spanAngle, isClose) {
+  // 步骤1：初始化基础参数
+  const centerX = w / 2
+  const centerY = H / 2
+  const quadCurves = getQuadCurves(w, H) // 获取4个象限的完整曲线
+  let currentAngle = startAngle % 360 // 当前处理的角度（取模保证0~360）
+  let remainingSpan = spanAngle // 剩余需要处理的角度
+  const pathCommands = [] // 最终的Path指令数组
+  let firstPoint = null // 整个路径的起点
+  let lastPoint = null // 上一段的终点（用于衔接）
+  const keyPoints = { // 关键点位信息（供绘制标注）
+    start: null,
+    end: null,
+    center: [centerX, centerY],
+    segments: [] // 每段曲线的信息：角度范围、是否截取、控制点等
+  }
+
+  // 步骤2：逐段处理角度范围（直到剩余角度为0）
+  while (remainingSpan > 0.1) { // 0.1°精度阈值，避免死循环
+    // 2.1 找到当前角度所在的象限
+    const currentQuad = quadCurves.find(quad => {
+      return currentAngle >= quad.minAngle && currentAngle < quad.maxAngle
+    })
+
+    if (!currentQuad) break // 无匹配象限，退出
+
+    // 2.2 计算当前象限可处理的最大角度
+    // const quadAngleRange = currentQuad.maxAngle - currentQuad.minAngle // 90°
+    const maxAngleInQuad = currentQuad.maxAngle - currentAngle // 当前象限剩余角度
+    const processAngle = Math.min(maxAngleInQuad, remainingSpan) // 本次处理的角度
+    const endAngle = currentAngle + processAngle // 本次处理的结束角度
+
+    // 2.3 角度转t值（精准映射到当前象限的0~1）
+    const tStart = angleToT(currentAngle, currentQuad.minAngle, currentQuad.maxAngle)
+    const tEnd = angleToT(endAngle, currentQuad.minAngle, currentQuad.maxAngle)
+
+    // 2.4 生成当前段的曲线（全跨/非全跨区分处理）
+    const segment = {
+      angleRange: [currentAngle, endAngle],
+      quadDesc: currentQuad.desc,
+      isCut: !(tStart === 0 && tEnd === 1),
+      path: '',
+      startPoint: [],
+      endPoint: [],
+      controls: []
+    }
+
+    if (segment.isCut) {
+      // 非全跨：使用德卡斯特里奥截取（来源是当前象限完整曲线）
+      const cutResult = cutBezierCurve(currentQuad.curve, tStart, tEnd)
+      segment.path = cutResult.path
+      segment.startPoint = cutResult.startPoint
+      segment.endPoint = cutResult.endPoint
+      segment.controls = [cutResult.points[1], cutResult.points[2]]
+    }
+    else {
+      // 全跨：直接使用原始曲线（解析为Path指令）
+      const [x0, y0, x1, y1, x2, y2, x3, y3] = currentQuad.curve
+      segment.path = `C ${x1.toFixed(6)} ${y1.toFixed(6)}, ${x2.toFixed(6)} ${y2.toFixed(6)}, ${x3.toFixed(6)} ${y3.toFixed(6)}`
+      segment.startPoint = [x0, y0]
+      segment.endPoint = [x3, y3]
+      segment.controls = [[x1, y1], [x2, y2]]
+    }
+
+    // 2.5 拼接Path指令（统一管理M指令，避免重复）
+    if (!firstPoint) {
+      // 第一段：添加M指令（起点）
+      firstPoint = segment.startPoint
+      lastPoint = segment.endPoint
+      keyPoints.start = firstPoint
+      pathCommands.push(`M ${firstPoint[0].toFixed(6)} ${firstPoint[1].toFixed(6)}`)
+      pathCommands.push(segment.path)
+    }
+    else {
+      // 后续段：先衔接上一段终点（偏差>0.1像素时加L指令）
+      const distance = Math.hypot(segment.startPoint[0] - lastPoint[0], segment.startPoint[1] - lastPoint[1])
+      if (distance > 0.1) {
+        pathCommands.push(`L ${segment.startPoint[0].toFixed(6)} ${segment.startPoint[1].toFixed(6)}`)
+      }
+      pathCommands.push(segment.path)
+      lastPoint = segment.endPoint
+    }
+
+    // 2.6 记录当前段信息（供绘制标注）
+    keyPoints.segments.push(segment)
+
+    // 2.7 更新状态：处理下一段角度
+    currentAngle = endAngle
+    remainingSpan -= processAngle
+  }
+
+  // 步骤3：闭合路径（根据配置）
+  keyPoints.end = lastPoint
+  if (firstPoint && lastPoint) {
+    if (isClose) {
+      // 经中心点闭合：曲线终点→中心点→起点
+      pathCommands.push(`L ${centerX.toFixed(6)} ${centerY.toFixed(6)}`)
+      pathCommands.push(`L ${firstPoint[0].toFixed(6)} ${firstPoint[1].toFixed(6)}`)
+    }
+    else {
+      // 直接闭合：曲线终点→起点
+      pathCommands.push(`L ${firstPoint[0].toFixed(6)} ${firstPoint[1].toFixed(6)}`)
+    }
+    pathCommands.push('Z') // 闭合指令
+  }
+
+  // 步骤4：返回最终结果
+  return {
+    pathCode: pathCommands.join('\n'),
+    keyPoints: keyPoints
+  }
+}
+
+
+
 function shapePie(H, w, adj1, adj2, isClose) {
+  // console.log('(00)-pptxtojson-shapePie-(H, w, adj1, adj2, isClose)', H, w, adj1, adj2, isClose)
+  console.log('(00)-pptxtojson-shapePie-(adj1, adj2):', adj1, '-', adj2)
+  // (H, w, adj1, adj2, isClose) 39.55 108.85 0 270 true
   const pieVal = parseInt(adj2)
   const piAngle = parseInt(adj1)
   const size = parseInt(H)
@@ -19,7 +690,14 @@ function shapePie(H, w, adj1, adj2, isClose) {
   let longArc, d
   if (isClose) {
     longArc = (value <= 180) ? 0 : 1
-    d = `M${radius},${radius} L${radius},0 A${radius},${radius} 0 ${longArc},1 ${radius + y * radius},${radius - x * radius} z`
+    // d = `M${radius},${radius} L${radius},0 A${radius},${radius} 0 ${longArc},1 ${radius + y * radius},${radius - x * radius} z`
+    d = `M${radius},${radius} 
+        L${radius},0 
+        A${radius},${radius} 0 ${longArc},1 ${radius + y * radius},${radius - x * radius} 
+        z`
+    // const result = generatePath(H, w, adj1, adj2 - adj1, isClose)
+    const result = generateBezierPath(H, w, adj1, adj2 - adj1, isClose)
+    d = result.pathCode
   } 
   else {
     longArc = (value <= 180) ? 0 : 1
@@ -27,7 +705,7 @@ function shapePie(H, w, adj1, adj2, isClose) {
     const radius2 = w / 2
     d = `M${radius1},0 A${radius2},${radius1} 0 ${longArc},1 ${radius2 + y * radius2},${radius1 - x * radius1}`
   }
-
+  console.log('(00)-pptxtojson-shapePie-(d)', d)
   return d
 }
 function shapeGear(h, points) {
