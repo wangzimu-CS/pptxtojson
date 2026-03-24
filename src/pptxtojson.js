@@ -8,7 +8,7 @@ import { getPosition, getSize } from './position'
 import { genTextBody } from './text'
 import { getCustomShapePath, identifyShape } from './shape'
 import { extractFileExtension, base64ArrayBuffer, getTextByPathList, angleToDegrees, getMimeType, isVideoLink, escapeHtml, hasValidText, numberToFixed } from './utils'
-import { getShadow } from './shadow'
+import { getShadow, getGlow } from './shadow'
 import { getTableBorders, getTableCellParams, getTableRowParams } from './table'
 import { RATIO_EMUs_Points } from './constants'
 import { findOMath, latexFormart, parseOMath } from './math'
@@ -821,6 +821,12 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
   const outerShdwNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:outerShdw'])
   if (outerShdwNode) shadow = getShadow(outerShdwNode, warpObj)
 
+  let glow
+  const glowNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:glow'])
+  if (glowNode) glow = getGlow(glowNode, warpObj)
+  console.log('(00)----pptxtojson:---glow:', glowNode)
+  console.log('(00)----pptxtojson:---glow:', glow)
+
   const vAlign = getVerticalAlign(node, slideLayoutSpNode, slideMasterSpNode, type)
   const isVertical = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert']) === 'eaVert'
   const autoFit = getTextAutoFit(node, slideLayoutSpNode, slideMasterSpNode)
@@ -846,6 +852,7 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
   }
 
   if (shadow) data.shadow = shadow
+  if (glow) data.glow = glow
   if (autoFit) data.autoFit = autoFit
   if (link) data.link = link
 
