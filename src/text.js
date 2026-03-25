@@ -16,7 +16,6 @@ import {
 
 export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
   if (!textBodyNode) return ''
-  console.log('(00)-pptxtojson-genTextBody---textBodyNode:', textBodyNode)
   let text = ''
 
   const pFontStyle = getTextByPathList(spNode, ['p:style', 'a:fontRef'])
@@ -100,13 +99,15 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
 
         if (!prevStyleInfo || prevStyleInfo.styleText !== styleInfo.styleText || prevStyleInfo.hasLink !== styleInfo.hasLink || styleInfo.hasLink) {
           if (accumulatedText) {
-            const processedText = accumulatedText.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
+            // const processedText = accumulatedText.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
+            const processedText = accumulatedText.replace(/\s/g, '&nbsp;')
             text += `<span style="${prevStyleInfo.styleText}">${processedText}</span>`
             accumulatedText = ''
           }
 
           if (styleInfo.hasLink) {
-            const processedText = styleInfo.text.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
+            // const processedText = styleInfo.text.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
+            const processedText = styleInfo.text.replace(/\s/g, '&nbsp;')
             text += `<span style="${styleInfo.styleText}"><a href="${styleInfo.linkURL}" target="_blank">${processedText}</a></span>`
             prevStyleInfo = null
           } 
@@ -131,6 +132,7 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
     const closedListType = listTypes.pop()
     text += `</${closedListType}>`
   }
+  console.log('(00)-pptxtojson-genTextBody---text:', text)
   return text
 }
 

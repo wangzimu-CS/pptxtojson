@@ -1,5 +1,5 @@
 import JSZip from 'jszip'
-import { readXmlFile } from './readXmlFile'
+import { readXmlFile, simplifyLostLess } from './readXmlFile'
 import { getBorder } from './border'
 import { getSlideBackgroundFill, getShapeFill, getSolidFill, getPicFill, getPicFilters } from './fill'
 import { getChartInfo } from './chart'
@@ -16,6 +16,7 @@ import { findOMath, latexFormart, parseOMath } from './math'
 import { getShapePath } from './shapePath'
 import { parseTransition, findTransitionNode } from './animation'
 import { getSmartArtTextData } from './diagram'
+import * as txml from 'txml/dist/txml.mjs'
 
 export async function parse(file) {
   const slides = []
@@ -299,7 +300,16 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
   const tableStyles = await readXmlFile(zip, 'ppt/tableStyles.xml')
 
   const slideContent = await readXmlFile(zip, sldFileName)
-  const nodes = slideContent['p:sld']['p:cSld']['p:spTree']
+  const slide1Xml = await zip.file(sldFileName).async('text')
+  const spNodes = parseXMLData(slide1Xml, 'spTree')
+  console.log('(00)-pptxtojson-processSingleSlide:--spNodes:', spNodes)
+  // const nodes = slideContent['p:sld']['p:cSld']['p:spTree']
+  let nodes = slideContent['p:sld']['p:cSld']['p:spTree']
+  console.log('(00)-pptxtojson-processSingleSlide:--nodes:', nodes)
+  if (spNodes.length > 0) {
+    nodes = getXMLNodeData(spNodes[0], ['p:spTree'])
+    console.log('(00)-pptxtojson-processSingleSlide:--nodes--new:', nodes)
+  }
   const warpObj = {
     zip,
     slideLayoutContent,
@@ -345,6 +355,55 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
     transition,
   }
 }
+
+function parseXMLData(slideXml, key) {
+  const ns = {
+    p: 'http://schemas.openxmlformats.org/presentationml/2006/main',
+    a: 'http://schemas.openxmlformats.org/drawingml/2006/main' 
+  }
+  const parser = new DOMParser()
+  const xmlDoc = parser.parseFromString(slideXml, 'text/xml')
+  // 获取所有动画节点
+  // const ctns = xmlDoc.getElementsByTagNameNS(ns.p, 'cTn')
+  const spList = xmlDoc.getElementsByTagNameNS(ns.p, key)
+  // const animNodes = Array.from(ctns).filter((v) => v.getAttribute('presetClass'))
+  return spList
+}
+
+function getXMLNode(node) {
+  // 创建 XML 序列化器
+  const serializer = new XMLSerializer()
+  // 将节点序列化为 XML 字符串
+  const animEffectXmlString = serializer.serializeToString(node)
+  const nodeObj = dealXmlData(animEffectXmlString)
+  return nodeObj
+}
+
+function getXMLNodeData(node, keys) {
+  const nodeObj = getXMLNode(node)
+  const value = getTextByPathList(nodeObj, keys)
+  return value
+}
+
+/**
+ * 处理XML字符串数据
+ * @param data XML字符串
+ * @returns 简化后的XML解析结果
+ */
+export function dealXmlData(data) {
+  if (data) {
+    const xmlData = txml.parse(data, {
+      keepWhitespace: true // 禁用首尾空白修剪
+    }) 
+      
+    // const DeletSpaceData = JSON.parse(JSON.stringify(xmlData).replace('"\\r\\n",', ''))
+    // return simplifyLostLess(DeletSpaceData)
+    return simplifyLostLess(xmlData)
+  }
+    
+  return null
+}
+
 
 function getHyperlinkFromCNvPr(cNvPr, warpObj) {
   const hlinkClick = getTextByPathList(cNvPr, ['a:hlinkClick', 'attrs'])
@@ -805,6 +864,7 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
   if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
   const { borderColor, borderWidth, borderType, strokeDasharray } = getBorder(node, type, warpObj)
   const fill = await getShapeFill(node, warpObj, source, groupHierarchy)
+  console.log('(00)-pptxtojson-genShape---content:', content)
 
   let shadow
   const outerShdwNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:outerShdw'])
