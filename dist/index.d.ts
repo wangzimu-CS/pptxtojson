@@ -5,6 +5,16 @@ export interface Shadow {
   color: string
 }
 
+export interface Glow {
+  rad: number
+  color: string
+}
+
+export interface SoftEdge {
+  rad: number
+  color: string
+}
+
 export interface ColorFill {
   type: 'color'
   value: string
@@ -63,6 +73,8 @@ export interface Shape {
   borderType: 'solid' | 'dashed' | 'dotted'
   borderStrokeDasharray: string
   shadow?: Shadow
+  glow?: Glow
+  softEdge?: SoftEdge  
   fill: Fill
   content: string
   isFlipV: boolean
@@ -89,6 +101,7 @@ export interface Text {
   borderType: 'solid' | 'dashed' | 'dotted'
   borderStrokeDasharray: string
   shadow?: Shadow
+  glow?: Glow
   fill: Fill
   isFlipV: boolean
   isFlipH: boolean

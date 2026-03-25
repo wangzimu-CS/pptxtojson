@@ -8,7 +8,8 @@ import { getPosition, getSize } from './position'
 import { genTextBody } from './text'
 import { getCustomShapePath, identifyShape } from './shape'
 import { extractFileExtension, base64ArrayBuffer, getTextByPathList, angleToDegrees, getMimeType, isVideoLink, escapeHtml, hasValidText, numberToFixed } from './utils'
-import { getShadow, getGlow } from './shadow'
+import { getShadow } from './shadow'
+import { getGlow, getSoftEdge } from './glow'
 import { getTableBorders, getTableCellParams, getTableRowParams } from './table'
 import { RATIO_EMUs_Points } from './constants'
 import { findOMath, latexFormart, parseOMath } from './math'
@@ -17,7 +18,6 @@ import { parseTransition, findTransitionNode } from './animation'
 import { getSmartArtTextData } from './diagram'
 
 export async function parse(file) {
-  console.log('(00)-pptxtojson-parse:', 'ok')
   const slides = []
   
   const zip = await JSZip.loadAsync(file)
@@ -109,12 +109,9 @@ async function getTheme(zip) {
     for (let i = 1; i <= 6; i++) {
       if (clrScheme[`a:accent${i}`] === undefined) break
       const color = getTextByPathList(clrScheme, [`a:accent${i}`, 'a:srgbClr', 'attrs', 'val'])
-      console.log('(00)-pptxtojson---getTheme-color:', color)
-      console.log('(00)-pptxtojson---getTheme-color=clrScheme:', clrScheme)
       if (color) themeColors.push('#' + color)
     }
   }
-  console.log('(00)-pptxtojson---getTheme-[themeContent, themeColors]:', themeContent, themeColors)
   return { themeContent, themeColors }
 }
 
@@ -302,8 +299,6 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
   const tableStyles = await readXmlFile(zip, 'ppt/tableStyles.xml')
 
   const slideContent = await readXmlFile(zip, sldFileName)
-  console.log('(00)-pptxtojson-processSingleSlide---zip, sldFileName:', sldFileName, zip)
-  console.log('(00)-pptxtojson-processSingleSlide---slideContent:', slideContent)
   const nodes = slideContent['p:sld']['p:cSld']['p:spTree']
   const warpObj = {
     zip,
@@ -328,7 +323,6 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
   const fill = await getSlideBackgroundFill(warpObj)
 
   const elements = []
-  console.log('(00)-pptxtojson-processSingleSlide---nodes:', nodes)
   for (const nodeKey in nodes) {
     if (nodes[nodeKey].constructor !== Array) nodes[nodeKey] = [nodes[nodeKey]]
     for (const node of nodes[nodeKey]) {
@@ -584,17 +578,13 @@ async function processNodesInSlide(nodeKey, nodeValue, warpObj, source, groupHie
     const id = getTextByPathList(nodeValue, [`p:nv${targetKey}Pr`, 'p:cNvPr', 'attrs', 'id'])
     const pr = getTextByPathList(nodeValue, ['p:spPr'])
     const useBgFill = getTextByPathList(nodeValue, ['attrs', 'useBgFill'])
-    // console.log('(00)-pptxtojson-processNodesInSlide-----[nodeKey,id,nodeValue]:', nodeKey, id, nodeValue)
-    // console.log('(00)-pptxtojson-processNodesInSlide-----[nodeKey,id,useBgFill,pr]:', nodeKey, id, useBgFill, pr)
     if (id) {
       json.id = id
     }
     if (pr) {
       json.propertySettings = useBgFill ? {...pr, useBgFill: true } : pr 
     }
-    // console.log('(00)-pptxtojson-processNodesInSlide-----json.propertySettings:', json.propertySettings)
   }
-  console.log('(00)-pptxtojson-processNodesInSlide-json:', json)
   return json
 }
 
@@ -813,7 +803,6 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
 
   let content = ''
   if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
-  console.log('(00)-pptxtojson-genShape-content:', content)
   const { borderColor, borderWidth, borderType, strokeDasharray } = getBorder(node, type, warpObj)
   const fill = await getShapeFill(node, warpObj, source, groupHierarchy)
 
@@ -824,8 +813,10 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
   let glow
   const glowNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:glow'])
   if (glowNode) glow = getGlow(glowNode, warpObj)
-  console.log('(00)----pptxtojson:---glow:', glowNode)
-  console.log('(00)----pptxtojson:---glow:', glow)
+
+  let softEdge
+  const softEdgeNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:softEdge'])
+  if (softEdgeNode) softEdge = getSoftEdge(softEdgeNode)
 
   const vAlign = getVerticalAlign(node, slideLayoutSpNode, slideMasterSpNode, type)
   const isVertical = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert']) === 'eaVert'
@@ -853,6 +844,7 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
 
   if (shadow) data.shadow = shadow
   if (glow) data.glow = glow
+  if (softEdge) data.softEdge = softEdge
   if (autoFit) data.autoFit = autoFit
   if (link) data.link = link
 
@@ -875,7 +867,6 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
 
   let shapePath = ''
   if (shapType) shapePath = getShapePath(shapType, width, height, node)
-  console.log('(00)-pptxtojson-genShape:--shapType:', shapType)
   if (shapType && (type === 'obj' || !type || shapType !== 'rect')) {
     if (!isHasValidText) data.content = ''
     return {
