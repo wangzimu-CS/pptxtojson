@@ -192,6 +192,7 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
   const slideLayoutContent = await readXmlFile(zip, layoutFilename)
   const slideLayoutTables = await indexNodes(slideLayoutContent)
   const slideLayoutResFilename = layoutFilename.replace('slideLayouts/slideLayout', 'slideLayouts/_rels/slideLayout') + '.rels'
+  console.log('(00)-pptxtojson-getLayoutElements--nodesSldLayout:--slideLayoutResFilename:', slideLayoutResFilename)
   const slideLayoutResContent = await readXmlFile(zip, slideLayoutResFilename)
   relationshipArray = slideLayoutResContent['Relationships']['Relationship']
   if (relationshipArray.constructor !== Array) relationshipArray = [relationshipArray]
@@ -330,6 +331,8 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
     defaultTextStyle,
   }
   const layoutElements = await getLayoutElements(warpObj)
+  console.log('(00)-pptxtojson-processSingleSlide--slideLayoutContent:', slideLayoutContent)
+  console.log('(00)-pptxtojson-processSingleSlide--layoutElements:', layoutElements)
   const fill = await getSlideBackgroundFill(warpObj)
 
   const elements = []
@@ -462,7 +465,7 @@ function getNote(noteContent) {
       }
       const lvlNode = getTextByPathList(pPr, ['attrs', 'lvl'])
       const listLevel = lvlNode !== undefined ? parseInt(lvlNode) : 0
-
+      console.log('(00)-pptxtojson-getNote---listType:', listType)
       if (listType) {
         while (listTypes.length > listLevel + 1) {
           text += `</${listTypes.pop()}>`
@@ -510,16 +513,27 @@ async function getLayoutElements(warpObj) {
   const slideMasterContent = warpObj['slideMasterContent']
   const nodesSldLayout = getTextByPathList(slideLayoutContent, ['p:sldLayout', 'p:cSld', 'p:spTree'])
   const nodesSldMaster = getTextByPathList(slideMasterContent, ['p:sldMaster', 'p:cSld', 'p:spTree'])
-
+  // 获取是否阻断集成的信息
+  const isPreserve = getTextByPathList(slideLayoutContent, ['p:sldLayout', 'attrs', 'preserve']) === '1'
+  // 母版
+  // 暂时取消nodesSldMaster信息的获取
+  // const nodesSldLayout = getTextByPathList(slideLayoutContent, ['p:sldLayout', 'p:cSld', 'p:spTree', '1212'])
+  // const nodesSldMaster = getTextByPathList(slideMasterContent, ['p:sldMaster', 'p:cSld', 'p:spTree', '123'])
+  console.log('(00)-pptxtojson-getLayoutElements--nodesSldLayout:', isPreserve, nodesSldLayout)
+  // console.log('(00)-pptxtojson-getLayoutElements--nodesSldMaster:', nodesSldMaster)
+  // console.log('(00)-pptxtojson-getLayoutElements--nodesSldMaster&&nodesSldLayout:', nodesSldMaster, '----------------------------', nodesSldLayout)
+  const sldLayOutElementList = []
+  const sldMasterElementList = []
   const showMasterSp = getTextByPathList(slideLayoutContent, ['p:sldLayout', 'attrs', 'showMasterSp'])
   if (nodesSldLayout) {
     for (const nodeKey in nodesSldLayout) {
+      console.log('(00)-pptxtojson-getLayoutElements--nodeKey:', nodeKey)
       if (nodesSldLayout[nodeKey].constructor === Array) {
         for (let i = 0; i < nodesSldLayout[nodeKey].length; i++) {
           const ph = getTextByPathList(nodesSldLayout[nodeKey][i], ['p:nvSpPr', 'p:nvPr', 'p:ph'])
           if (!ph) {
             const ret = await processNodesInSlide(nodeKey, nodesSldLayout[nodeKey][i], warpObj, 'slideLayoutBg')
-            if (ret) elements.push(ret)
+            if (ret) sldLayOutElementList.push(ret) // elements.push(ret)
           }
         }
       } 
@@ -527,7 +541,7 @@ async function getLayoutElements(warpObj) {
         const ph = getTextByPathList(nodesSldLayout[nodeKey], ['p:nvSpPr', 'p:nvPr', 'p:ph'])
         if (!ph) {
           const ret = await processNodesInSlide(nodeKey, nodesSldLayout[nodeKey], warpObj, 'slideLayoutBg')
-          if (ret) elements.push(ret)
+          if (ret) sldLayOutElementList.push(ret) // elements.push(ret)
         }
       }
     }
@@ -539,7 +553,7 @@ async function getLayoutElements(warpObj) {
           const ph = getTextByPathList(nodesSldMaster[nodeKey][i], ['p:nvSpPr', 'p:nvPr', 'p:ph'])
           if (!ph) {
             const ret = await processNodesInSlide(nodeKey, nodesSldMaster[nodeKey][i], warpObj, 'slideMasterBg')
-            if (ret) elements.push(ret)
+            if (ret) sldMasterElementList.push(ret)// elements.push(ret)
           }
         }
       } 
@@ -547,12 +561,95 @@ async function getLayoutElements(warpObj) {
         const ph = getTextByPathList(nodesSldMaster[nodeKey], ['p:nvSpPr', 'p:nvPr', 'p:ph'])
         if (!ph) {
           const ret = await processNodesInSlide(nodeKey, nodesSldMaster[nodeKey], warpObj, 'slideMasterBg')
-          if (ret) elements.push(ret)
+          if (ret) sldMasterElementList.push(ret)// elements.push(ret)
         }
       }
     }
   }
+  const abs = false
+  if (abs) {
+    findSameSubObjects(sldLayOutElementList, sldMasterElementList)
+  }
+  console.log('(00)-pptxtojson-getLayoutElements--sldLayOutElementList:', sldLayOutElementList, '------------------------sldMasterElementList:', sldMasterElementList)
+  for (let i = 0;i < sldLayOutElementList.length;i++) {
+    const target = sldLayOutElementList[i]
+    if (!isPreserve) {
+      elements.push(target)
+    }
+    else {
+      // 阻断集成的LayOut需要判断元素是否继承自母版
+      if (!isObjectInArrayById(target, sldMasterElementList)) {
+        elements.push(target)
+      }
+    }
+  }
   return elements
+}
+function isObjectInArrayById(target, arr) {
+  return arr.some(item => item.id === target.id)
+}
+/**
+ * 深度对比两个对象，找出完全相同的子属性/子对象
+ * @param {Object} obj1 第一个对象
+ * @param {Object} obj2 第二个对象
+ * @returns {Array} 完全相同的键名数组（支持嵌套路径）
+ */
+function findSameSubObjects(obj1, obj2) {
+  const sameKeys = []
+
+  // 深度对比工具函数
+  function deepCompare(target1, target2, currentPath = '') {
+    // 类型不同 → 直接不相等
+    if (typeof target1 !== typeof target2) return false
+    
+    // 处理 null / undefined
+    if (target1 === null && target2 === null) return true
+    if (target1 === undefined && target2 === undefined) return true
+
+    // 基础类型（字符串/数字/布尔）直接对比值
+    if (typeof target1 !== 'object') {
+      return target1 === target2
+    }
+
+    // 数组对比
+    if (Array.isArray(target1) && Array.isArray(target2)) {
+      if (target1.length !== target2.length) return false
+      for (let i = 0; i < target1.length; i++) {
+        if (!deepCompare(target1[i], target2[i], `${currentPath}[${i}]`)) {
+          return false
+        }
+      }
+      return true
+    }
+
+    // 对象对比
+    const keys1 = Object.keys(target1)
+    const keys2 = Object.keys(target2)
+
+    // 键数量不同 → 不相等
+    if (keys1.length !== keys2.length) return false
+
+    let isEqual = true
+    for (const key of keys1) {
+      const path = currentPath ? `${currentPath}.${key}` : key
+      const val1 = target1[key]
+      const val2 = target2[key]
+
+      // 递归对比子值
+      const childEqual = deepCompare(val1, val2, path)
+      if (!childEqual) isEqual = false
+
+      // 子对象/子值完全相等 → 记录路径
+      if (childEqual) {
+        sameKeys.push(path)
+      }
+    }
+
+    return isEqual
+  }
+
+  deepCompare(obj1, obj2)
+  return sameKeys
 }
 
 function indexNodes(content) {

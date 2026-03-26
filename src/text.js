@@ -51,7 +51,11 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
 
     const align = getHorizontalAlign(pNode, spNode, type, warpObj)
     const spacing = getParagraphSpacing(pNode)
-
+    console.log('(00)-pptxtojson-genTextBody---align:', align)
+    if (align === 'left') {
+      console.log('(00)-pptxtojson-genTextBody---align:-[pNode, spNode, type, warpObj]', pNode, spNode, type, warpObj)
+    }
+    // console.log('(00)-pptxtojson-genTextBody---spacing:', spacing)
     let styleText = `text-align: ${align};`
     if (spacing) {
       if (spacing.lineSpacing) styleText += `line-height: ${spacing.lineSpacing};`
@@ -132,8 +136,85 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
     const closedListType = listTypes.pop()
     text += `</${closedListType}>`
   }
+  const abs = false
+  if (abs) {
+    text = replaceMultiNbspBlocks(text)
+    text = addStyleToSpans(text, ' line-height: inherit; vertical-align: middle;')
+  }
+  else {
+    text = replaceNbspByLimit(text, 3)
+  }
+  text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle;')
+  text = addStyleToTag(text, 'p', ' margin: 0; padding: 0;')
   console.log('(00)-pptxtojson-genTextBody---text:', text)
   return text
+}
+
+/**
+ * 给指定 HTML 标签的内联样式追加样式
+ * @param {string} htmlStr - 原始 HTML 字符串
+ * @param {string} tag - 要处理的标签名，例如：span、p、div、h1
+ * @param {string} addStyle - 要追加的样式语句
+ * @returns {string} 处理后的 HTML 字符串
+ */
+function addStyleToTag(htmlStr, tag, addStyle) {
+  // 确保样式最后有分号，避免样式出错
+  const style = addStyle.trim().endsWith(';') ? addStyle : addStyle + ';'
+
+  // 第一步：给【已有 style 属性】的标签追加样式
+  const regex1 = new RegExp(`<${tag}([^>]*)style="([^"]*)"`, 'gi')
+  let result = htmlStr.replace(regex1, (match, attr, oldStyles) => {
+    return `<${tag}${attr}style="${oldStyles} ${style}"`
+  })
+
+  // 第二步：给【没有 style 属性】的标签自动加上 style
+  const regex2 = new RegExp(`<${tag}(?!.*style=)`, 'gi')
+  result = result.replace(regex2, `<${tag} style="${style}"`)
+
+  return result
+}
+
+function addStyleToSpans(htmlStr, addStyle) {
+  const style = addStyle.trim().endsWith(';') ? addStyle : addStyle + ';'
+  return htmlStr.replace(/<span([^>]*)style="([^"]*)"/gi, (match, attr, old) => {
+    return `<span${attr}style="${old} ${style}"`
+  }).replace(/<span(?!.*style=)/gi, `<span style="${style}"`)
+}
+
+function replaceMultiNbspBlocks(str) {
+  // 匹配 任意位置 连续 2个及以上的 &nbsp; 全局替换
+  return str.replace(/(&nbsp;){2,}/g, (match) => {
+    // 计算当前这个区块有多少个 &nbsp;
+    const nbspCount = (match.match(/&nbsp;/g) || []).length
+
+    // 规则：首尾变成普通空格，中间保留 &nbsp;
+    if (nbspCount === 1) {
+      return match
+    }
+    if (nbspCount === 2) {
+      return '  ' // 2个 → 两个普通空格
+    }
+    // 3个及以上：首尾普通空格 + 中间剩下的 &nbsp;
+    return ' ' + '&nbsp;'.repeat(nbspCount - 2) + ' '
+  })
+}
+
+function replaceNbspByLimit(str, minCount) {
+  // 匹配全局连续的 &nbsp; 区块
+  return str.replace(/(&nbsp;)+/g, (match) => {
+    // 计算当前区块有多少个 &nbsp;
+    const total = (match.match(/&nbsp;/g) || []).length
+
+    // 小于设定数量 → 不替换，直接返回
+    if (total < minCount) return match
+
+    // 达到数量 → 首尾变普通空格，中间保留 &nbsp;
+    if (total === 1) return match
+    if (total === 2) return '  '
+
+    // 核心：空格 + 中间 &nbsp; + 空格
+    return ' ' + '&nbsp;'.repeat(total - 2) + ' '
+  })
 }
 
 export function getListType(node) {
