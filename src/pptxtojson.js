@@ -340,6 +340,9 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
     if (nodes[nodeKey].constructor !== Array) nodes[nodeKey] = [nodes[nodeKey]]
     for (const node of nodes[nodeKey]) {
       const ret = await processNodesInSlide(nodeKey, node, warpObj, 'slide')
+      // if (ret.type === 'text') {
+      console.log('(00)text_element----ret:--pptxtojson_ret:', ret)
+      // }
       if (ret) elements.push(ret)
     }
   }
@@ -979,6 +982,11 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
   const isVertical = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert']) === 'eaVert'
   const autoFit = getTextAutoFit(node, slideLayoutSpNode, slideMasterSpNode)
 
+  if (content.includes('拼音')) {
+    // width += 3
+    // height = height + 0
+    console.log('(00)---pptxtojson-genShape---content:', content)
+  }
   const data = {
     left,
     top,

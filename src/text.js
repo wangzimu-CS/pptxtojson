@@ -18,6 +18,7 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
   if (!textBodyNode) return ''
   let text = ''
 
+  console.log('(00)-genTextBody-:textBodyNode:', textBodyNode)
   const pFontStyle = getTextByPathList(spNode, ['p:style', 'a:fontRef'])
 
   const pNode = textBodyNode['a:p']
@@ -49,13 +50,11 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
       }
     }
 
-    const align = getHorizontalAlign(pNode, spNode, type, warpObj)
+    // 增加整个textbody对齐参信息的获取-解决文本框对齐问题
+    const lstStyle = textBodyNode['a:lstStyle']
+    const lstStyle_align = getTextByPathList(lstStyle, ['a:lvl1pPr', 'attrs', 'algn'])
+    const align = getHorizontalAlign(pNode, spNode, type, warpObj, lstStyle_align)
     const spacing = getParagraphSpacing(pNode)
-    console.log('(00)-pptxtojson-genTextBody---align:', align)
-    if (align === 'left') {
-      console.log('(00)-pptxtojson-genTextBody---align:-[pNode, spNode, type, warpObj]', pNode, spNode, type, warpObj)
-    }
-    // console.log('(00)-pptxtojson-genTextBody---spacing:', spacing)
     let styleText = `text-align: ${align};`
     if (spacing) {
       if (spacing.lineSpacing) styleText += `line-height: ${spacing.lineSpacing};`
@@ -122,7 +121,6 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
         } 
         else accumulatedText += styleInfo.text
       }
-      console.log('(00)-pptxtojson-genTextBody--accumulatedText:', accumulatedText)
       if (accumulatedText && prevStyleInfo) {
         const processedText = accumulatedText.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
         text += `<span style="${prevStyleInfo.styleText}">${processedText}</span>`
@@ -144,7 +142,7 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
   else {
     text = replaceNbspByLimit(text, 3)
   }
-  text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle;')
+  text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; word-break: keep-all')
   text = addStyleToTag(text, 'p', ' margin: 0; padding: 0;')
   console.log('(00)-pptxtojson-genTextBody---text:', text)
   return text
@@ -250,6 +248,7 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   const lstStyle = textBodyNode['a:lstStyle']
   const slideMasterTextStyles = warpObj['slideMasterTextStyles']
 
+  console.log('(00)-genTextBody-getSpanStyleInfo--lstStyle:', lstStyle)
   let lvl = 1
   const pPrNode = pNode['a:pPr']
   const lvlNode = getTextByPathList(pPrNode, ['attrs', 'lvl'])
