@@ -27,6 +27,7 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
   const listTypes = []
 
   for (const pNode of pNodes) {
+    console.log('(00)-genTextBody-:pNode:', pNode)
     let rNode = pNode['a:r']
     let fldNode = pNode['a:fld']
     let brNode = pNode['a:br']
@@ -91,7 +92,8 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
     }
     
     if (!rNode) {
-      text += genSpanElement(pNode, spNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
+      // text += genSpanElement(pNode, spNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
+      // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText--!rNode', genSpanElement(pNode, spNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj))
     } 
     else {
       let prevStyleInfo = null
@@ -120,6 +122,9 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
           }
         } 
         else accumulatedText += styleInfo.text
+
+        console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText -inFor:', accumulatedText)
+
       }
       if (accumulatedText && prevStyleInfo) {
         const processedText = accumulatedText.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
@@ -142,10 +147,64 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
   else {
     text = replaceNbspByLimit(text, 3)
   }
-  text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; word-break: keep-all')
+  // if (!text.includes('&nbsp;')) {
+  //   text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; word-break: keep-all; white-space: nowrap')
+  //   console.log('(00)-pptxtojson-genTextBody---text:', '有&nbsp;')
+  // }
+  // else {
+  //   text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; word-break: keep-all;')
+  //   console.log('(00)-pptxtojson-genTextBody---text:', '没有&nbsp;')
+  // }
   text = addStyleToTag(text, 'p', ' margin: 0; padding: 0;')
   console.log('(00)-pptxtojson-genTextBody---text:', text)
+  const result = checkSpanLastCharIsTonePinyin(text)
+  if (abs) {
+    console.log('(00)---checkSpanLastCharIsTonePinyinresult:', result)
+  }
+  // console.log('(00)-dsfjslkjflas:-result:', result)
+  if (result && result.length === 1 && result[0].isTonePinyin) {
+    text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; word-break: keep-all; white-space: nowrap')
+    // console.log('(00)-dsfjslkjflas:-result:23412', '强制不换行')
+  }
   return text
+}
+
+/**
+ * 判断 HTML 字符串中所有 <span> 的最后一个字符是否是【带声调的拼音字母】
+ * @param {string} htmlString - 传入的 HTML 字符串（如 <p><span>piē</span></p>）
+ * @returns {Array<{ spanText: string, lastChar: string, isTonePinyin: boolean }>} 每个 span 的判断结果
+ */
+function checkSpanLastCharIsTonePinyin(htmlString) {
+  // 1. 创建临时 DOM 容器解析 HTML
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = htmlString
+
+  // 2. 取出所有 span 元素
+  const spans = tempDiv.querySelectorAll('span')
+
+  if (spans.length === 0) {
+    return []
+  }
+
+  // 3. 正则：匹配所有带声调的汉语拼音字母（a o e i u ü 四声全覆盖）
+  const tonePinyinRegex = /[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/i
+
+  // 4. 遍历每个 span，判断最后一个字符
+  const result = Array.from(spans).map(span => {
+    const text = span.textContent.trim() // 去除空格
+    const last2Char = text ? text.charAt(text.length - 2) : '' // 最后一个字符
+    const lastChar = text ? text.charAt(text.length - 1) : '' // 最后一个字符
+    const isTonePinyin = lastChar ? tonePinyinRegex.test(lastChar) : false
+    const isTonePinyin1 = last2Char ? tonePinyinRegex.test(last2Char) : false
+
+    return {
+      spanText: text, // span 内的文本
+      lastChar: lastChar, // 最后一个字符
+      isTonePinyin: isTonePinyin || isTonePinyin1 // 是否是带声调拼音字母
+    }
+  })
+
+  return result
 }
 
 /**
