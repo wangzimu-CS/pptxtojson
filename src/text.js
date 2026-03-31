@@ -19,16 +19,19 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
   let text = ''
 
   console.log('(00)-genTextBody-:textBodyNode:', textBodyNode)
+  // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText -textBodyNode:', textBodyNode)
   const pFontStyle = getTextByPathList(spNode, ['p:style', 'a:fontRef'])
 
   const pNode = textBodyNode['a:p']
+  // console.log('(00)-genTextBody-:pNode:', pNode)
   const pNodes = pNode.constructor === Array ? pNode : [pNode]
 
   const listTypes = []
 
   for (const pNode of pNodes) {
-    console.log('(00)-genTextBody-:pNode:', pNode)
+    // console.log('(00)-genTextBody-:pNode:', pNode)
     let rNode = pNode['a:r']
+    console.log('(00)-genTextBody-:rNode:', rNode)
     let fldNode = pNode['a:fld']
     let brNode = pNode['a:br']
     if (rNode) {
@@ -58,6 +61,7 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
     const spacing = getParagraphSpacing(pNode)
     let styleText = `text-align: ${align};`
     if (spacing) {
+      // console.log('(00)=-=====>spacing.lineSpacing:', spacing.lineSpacing)
       if (spacing.lineSpacing) styleText += `line-height: ${spacing.lineSpacing};`
       if (spacing.spaceBefore) styleText += `margin-top: ${spacing.spaceBefore};`
       if (spacing.spaceAfter) styleText += `margin-bottom: ${spacing.spaceAfter};`
@@ -92,27 +96,29 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
     }
     
     if (!rNode) {
-      // text += genSpanElement(pNode, spNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
-      // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText--!rNode', genSpanElement(pNode, spNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj))
+      text += genSpanElement(pNode, spNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
+      console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText--!rNode', genSpanElement(pNode, spNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj))
     } 
     else {
       let prevStyleInfo = null
       let accumulatedText = ''
-
+      let defaultLineHight = false
       for (const rNodeItem of rNode) {
         const styleInfo = getSpanStyleInfo(rNodeItem, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
 
         if (!prevStyleInfo || prevStyleInfo.styleText !== styleInfo.styleText || prevStyleInfo.hasLink !== styleInfo.hasLink || styleInfo.hasLink) {
           if (accumulatedText) {
             // const processedText = accumulatedText.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
-            const processedText = accumulatedText.replace(/\s/g, '&nbsp;')
+            // const processedText = accumulatedText.replace(/\s/g, '&nbsp;')
+            const processedText = accumulatedText
             text += `<span style="${prevStyleInfo.styleText}">${processedText}</span>`
             accumulatedText = ''
           }
 
           if (styleInfo.hasLink) {
             // const processedText = styleInfo.text.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
-            const processedText = styleInfo.text.replace(/\s/g, '&nbsp;')
+            // const processedText = styleInfo.text.replace(/\s/g, '&nbsp;')
+            const processedText = styleInfo.text
             text += `<span style="${styleInfo.styleText}"><a href="${styleInfo.linkURL}" target="_blank">${processedText}</a></span>`
             prevStyleInfo = null
           } 
@@ -123,12 +129,17 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
         } 
         else accumulatedText += styleInfo.text
 
-        console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText -inFor:', accumulatedText)
-
+        // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText -inFor:', accumulatedText)
+        defaultLineHight = styleInfo.lineHight115
       }
       if (accumulatedText && prevStyleInfo) {
-        const processedText = accumulatedText.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
+        // const processedText = accumulatedText.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
+        const processedText = accumulatedText
         text += `<span style="${prevStyleInfo.styleText}">${processedText}</span>`
+      }
+      if (defaultLineHight) {
+        text = addStyleToTag(text, 'span', 'line-height: 1.15')
+        console.log('(00)-getSpanStyleInfo----aRpr:-----accumulatedText-------------------------------------------------:', accumulatedText)
       }
     }
 
@@ -149,22 +160,35 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
   }
   // if (!text.includes('&nbsp;')) {
   //   text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; word-break: keep-all; white-space: nowrap')
-  //   console.log('(00)-pptxtojson-genTextBody---text:', '有&nbsp;')
+  //   // console.log('(00)-pptxtojson-genTextBody---text:', '有&nbsp;')
   // }
   // else {
   //   text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; word-break: keep-all;')
-  //   console.log('(00)-pptxtojson-genTextBody---text:', '没有&nbsp;')
+  //   // console.log('(00)-pptxtojson-genTextBody---text:', '没有&nbsp;')
   // }
-  text = addStyleToTag(text, 'p', ' margin: 0; padding: 0;')
-  console.log('(00)-pptxtojson-genTextBody---text:', text)
-  const result = checkSpanLastCharIsTonePinyin(text)
-  if (abs) {
-    console.log('(00)---checkSpanLastCharIsTonePinyinresult:', result)
+  if (!abs) {
+    text = addStyleToTag(text, 'p', ' margin: 0; padding: 0;')
+    // console.log('(00)-pptxtojson-genTextBody---text:', text)
+    const result = checkSpanLastCharIsTonePinyin(text)
+    if (abs) {
+      // console.log('(00)---checkSpanLastCharIsTonePinyinresult:', result)
+    }
+    // // console.log('(00)-dsfjslkjflas:-result:', result)
+    if (result && result.length === 1 && result[0].isTonePinyin) {
+      text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; word-break: keep-all; white-space: nowrap')
+      // // console.log('(00)-dsfjslkjflas:-result:23412', '强制不换行')
+    }
+    else {
+      // text = addStyleToTag(text, 'span', 'white-space: pre-wrap; line-height: 2')
+      text = addStyleToTag(text, 'span', 'white-space: pre-wrap')
+    }
+    // // console.log('(00)-pptxtojson-genTextBody---text:---最终:', text)
   }
-  // console.log('(00)-dsfjslkjflas:-result:', result)
-  if (result && result.length === 1 && result[0].isTonePinyin) {
-    text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; word-break: keep-all; white-space: nowrap')
-    // console.log('(00)-dsfjslkjflas:-result:23412', '强制不换行')
+  // text = addStyleToTag(text, 'span', 'line-height: 1.15')
+  // text = addStyleToTag(text, 'span', 'white-space: pre-wrap;')
+  if (text.includes('&nbsp;')) {
+    console.log('(00)-------text:有&nbsp:', text)
+    text = text.replace('&nbsp;', ' ')
   }
   return text
 }
@@ -192,15 +216,17 @@ function checkSpanLastCharIsTonePinyin(htmlString) {
   // 4. 遍历每个 span，判断最后一个字符
   const result = Array.from(spans).map(span => {
     const text = span.textContent.trim() // 去除空格
+    const last3Char = text ? text.charAt(text.length - 3) : '' // 最后一个字符
     const last2Char = text ? text.charAt(text.length - 2) : '' // 最后一个字符
     const lastChar = text ? text.charAt(text.length - 1) : '' // 最后一个字符
     const isTonePinyin = lastChar ? tonePinyinRegex.test(lastChar) : false
     const isTonePinyin1 = last2Char ? tonePinyinRegex.test(last2Char) : false
+    const isTonePinyin2 = last3Char ? tonePinyinRegex.test(last3Char) : false
 
     return {
       spanText: text, // span 内的文本
       lastChar: lastChar, // 最后一个字符
-      isTonePinyin: isTonePinyin || isTonePinyin1 // 是否是带声调拼音字母
+      isTonePinyin: isTonePinyin || isTonePinyin1 || isTonePinyin2 // 是否是带声调拼音字母
     }
   })
 
@@ -295,7 +321,8 @@ export function getListLevel(node) {
 
 export function genSpanElement(node, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
   const { styleText, text, hasLink, linkURL } = getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
-  const processedText = text.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
+  // const processedText = text.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
+  const processedText = text
 
   if (hasLink) {
     return `<span style="${styleText}"><a href="${linkURL}" target="_blank">${processedText}</a></span>`
@@ -306,18 +333,27 @@ export function genSpanElement(node, pNode, textBodyNode, pFontStyle, slideLayou
 export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
   const lstStyle = textBodyNode['a:lstStyle']
   const slideMasterTextStyles = warpObj['slideMasterTextStyles']
-
-  console.log('(00)-genTextBody-getSpanStyleInfo--lstStyle:', lstStyle)
+  // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText-text:', '1111111')
+  // console.log('(00)-genTextBody-getSpanStyleInfo--lstStyle:', lstStyle)
   let lvl = 1
   const pPrNode = pNode['a:pPr']
   const lvlNode = getTextByPathList(pPrNode, ['attrs', 'lvl'])
   if (lvlNode !== undefined) lvl = parseInt(lvlNode) + 1
 
   let text = node['a:t']
-  console.log('(00)-pptxtojson-genSpanEl---node:', node)
-  console.log('(00)-pptxtojson-genSpanEl---text:', text)
+  // console.log('(00)-pptxtojson-getSpanStyleInfo---text:', text)
+  // console.log('(00)-pptxtojson-genSpanEl---node:', node)
+  // console.log('(00)-pptxtojson-genSpanEl---text:', text)
   if (typeof text !== 'string') text = getTextByPathList(node, ['a:fld', 'a:t'])
-  if (typeof text !== 'string') text = '&nbsp;'
+  // if (typeof text !== 'string') text = '&nbsp;'
+  if (typeof text !== 'string') text = ' '
+  // // console.log('(00)-pptxtojson-getSpanStyleInfo---text:.includes(/\s/g):', text.includes(/\s/g))
+  if (text.includes('\t')) {
+    // console.log('(00)-pptxtojson-getSpanStyleInfo---text:.includes(/\s/g):', '有回车')
+  }
+  if (text.includes('\s')) {
+    // console.log('(00)-pptxtojson-getSpanStyleInfo---text:.includes(/\s/g):', '有空格')
+  }
 
   let styleText = ''
   const fontColor = getFontColor(node, pNode, lstStyle, pFontStyle, lvl, warpObj)
@@ -330,6 +366,14 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   const fontSpace = getFontSpace(node)
   const shadow = getFontShadow(node, warpObj)
   const subscript = getFontSubscript(node)
+
+  if (fontDecoration) {
+    console.log('(00)-genTextBody-:rNode:--getSpanStyleInfo[fontDecoration]', fontDecoration)
+  }
+
+  if (fontDecorationLine) {
+    console.log('(00)-genTextBody-:rNode:--getSpanStyleInfo[fontDecorationLine]', fontDecorationLine)
+  }
 
   if (fontColor) {
     if (typeof fontColor === 'string') styleText += `color: ${fontColor};`
@@ -353,10 +397,24 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   const linkID = getTextByPathList(node, ['a:rPr', 'a:hlinkClick', 'attrs', 'r:id'])
   const hasLink = linkID && warpObj['slideResObj'][linkID]
 
+  const aRpr = getTextByPathList(node, ['a:rPr', 'attrs'])
+  let lineHight115
+  if (aRpr && aRpr.sz) {
+    lineHight115 = aRpr.sz === '2800' && text.length > 40
+    if (lineHight115) {
+      console.log('(00)-getSpanStyleInfo----aRpr:', aRpr.sz, '--lineHight115:', lineHight115, '---text:', text)
+    }
+    // if (text.length > 10) {
+    //   console.log('(00)-getSpanStyleInfo----aRpr:------>10:', aRpr.sz, '--lineHight115:', lineHight115, '---text:', text)
+    // }
+    console.log('(00)-getSpanStyleInfo----aRpr:------>10:', aRpr.sz, '--lineHight115:', lineHight115, '---text:', text)
+  }
+
   return {
     styleText,
     text,
     hasLink,
-    linkURL: hasLink ? warpObj['slideResObj'][linkID]['target'] : null
+    linkURL: hasLink ? warpObj['slideResObj'][linkID]['target'] : null,
+    lineHight115
   }
 }
