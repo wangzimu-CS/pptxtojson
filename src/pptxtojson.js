@@ -946,7 +946,7 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
 
   const { top, left } = getPosition(slideXfrmNode, slideLayoutXfrmNode, slideMasterXfrmNode)
   const { width, height } = getSize(slideXfrmNode, slideLayoutXfrmNode, slideMasterXfrmNode)
-
+  console.log('(00)-genTextBody-:new---元素宽高-width, height：', width, height)
   const isFlipV = getTextByPathList(slideXfrmNode, ['attrs', 'flipV']) === '1'
   const isFlipH = getTextByPathList(slideXfrmNode, ['attrs', 'flipH']) === '1'
 
@@ -961,7 +961,8 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
   else txtRotate = rotate
 
   let content = ''
-  if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
+  console.log('(00)-genTextBody-:textBodyNode:--node:', node)
+  if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width)
   const { borderColor, borderWidth, borderType, strokeDasharray } = getBorder(node, type, warpObj)
   const fill = await getShapeFill(node, warpObj, source, groupHierarchy)
   console.log('(00)-pptxtojson-genShape---content:', content)
@@ -987,6 +988,7 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
     // height = height + 0
     console.log('(00)---pptxtojson-genShape---content:', content)
   }
+  console.log('(00)genShape----data[left, top, width, height]:', left, top, width, height)
   const data = {
     left,
     top,

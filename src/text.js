@@ -14,20 +14,172 @@ import {
   getFontShadow,
 } from './fontStyle'
 
-export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
+function parsePPTTextToLines(shapeData, width) {
+  // 基础校验
+  if (!shapeData || typeof shapeData !== 'object') return []
+
+  // ======================
+  // 1. 读取文本框宽度（完全来自传入数据，不写死）
+  // ======================
+  const spPr = shapeData['p:spPr']
+  if (!spPr) return []
+
+  const xfrm = spPr['a:xfrm']
+  if (!xfrm) return []
+
+  const ext = xfrm['a:ext']
+  if (!ext || !ext.attrs || ext.attrs.cx === null) return []
+
+  const cx = Number(ext.attrs.cx)
+  if (isNaN(cx) || cx <= 0) return []
+  // const textBoxWidthPx = cx / 12700 // PPT官方公式，无写死
+  const textBoxWidthPx = width // PPT官方公式，无写死
+  if (width === cx / 12700) {
+    console.log('(00)-genTextBody-:new---切行结果----lines:--判断', '相同')
+  }
+  else {
+    console.log('(00)-genTextBody-:new---切行结果----lines:--判断', '不同！','cx:',cx)
+  }
+
+  // ======================
+  // 2. 读取段落
+  // ======================
+  const txBody = shapeData['p:txBody']
+  if (!txBody) return []
+
+  let paragraphs = txBody['a:p']
+  if (!paragraphs) return []
+  paragraphs = Array.isArray(paragraphs) ? paragraphs : [paragraphs]
+
+  const result = []
+
+  for (const p of paragraphs) {
+    if (!p) continue
+
+    let runs = p['a:r']
+    if (!runs) continue
+    runs = Array.isArray(runs) ? runs : [runs]
+
+    // 拼接完整文本
+    let fullText = ''
+    let realFontSize = 36 // 兜底，但优先从XML读取
+
+    // ======================
+    // 3. 从 XML 里读取真实字号 sz → 计算真实字符宽度（无写死！）
+    // ======================
+    for (const r of runs) {
+      if (r && typeof r['a:t'] === 'string') {
+        fullText += r['a:t']
+      }
+      // 读取真实字号 sz 3600 = 36pt
+      if (r && r['a:rPr'] && r['a:rPr'].attrs && r['a:rPr'].attrs.sz) {
+        const sz = Number(r['a:rPr'].attrs.sz)
+        if (!isNaN(sz) && sz > 0) {
+          realFontSize = sz / 100 // 3600 → 36pt
+        }
+      }
+    }
+
+    // 真正计算字符宽度：pt → px（标准公式，无写死）
+    // const charWidth = realFontSize * 1.3333
+    const charWidth = realFontSize
+
+    // ======================
+    // 4. 自动换行（完全动态计算）
+    // ======================
+    // const lines = wrapTextReal(fullText, textBoxWidthPx, charWidth)
+    // const lines = wrapTextReal(fullText, newTextBoxWidthPx, newCharWidth)
+    const lines = wrapTextProfessional(fullText, textBoxWidthPx, charWidth)
+    console.log('(00)-genTextBody-:new---切行结果----lines:', lines)
+
+    result.push({
+      text: fullText,
+      lines: lines,
+    })
+  }
+
+  return result
+}
+
+/**
+ * 真正正确的 PPT 中文自动换行
+ * 汉字 = 全宽
+ * 空格/标点 = 半宽
+ * 严格按像素计算
+ * 标点不出现在行首
+ */
+function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth) {
+  if (typeof text !== 'string' || text === '') return []
+  if (maxLineWidthPx <= 0 || fullCharWidth <= 0) return []
+
+  const halfCharWidth = fullCharWidth * 0.5
+  const lines = []
+  let currentLine = ''
+  let currentWidth = 0
+
+  // 行首禁止出现的标点
+  const NO_LINE_START = new Set([
+    '，', '。', '、', '；', '：', '）', '”', '！', '？', '…'
+  ])
+
+  // 空格、英文标点使用半宽
+  const HALF_WIDTH_CHARS = new Set([
+    ' ', ' ', ' ', ' ', '\t',
+    ',', '.', ';', ':', '!', '?', '"', ')', ']'
+  ])
+
+  for (const char of text) {
+    // ✅ 关键修复：空格 != 汉字宽度
+    const charW = HALF_WIDTH_CHARS.has(char) ? halfCharWidth : fullCharWidth
+
+    // 超宽判断
+    if (currentWidth + charW > maxLineWidthPx) {
+      // 标点不能放行首
+      if (NO_LINE_START.has(char)) {
+        currentLine += char
+        currentWidth += charW
+        lines.push(currentLine)
+        currentLine = ''
+        currentWidth = 0
+      }
+      else {
+        lines.push(currentLine)
+        currentLine = char
+        currentWidth = charW
+      }
+    }
+    else {
+      currentLine += char
+      currentWidth += charW
+    }
+  }
+
+  if (currentLine !== '') {
+    lines.push(currentLine)
+  }
+
+  return lines
+}
+
+export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width) {
   if (!textBodyNode) return ''
   let text = ''
 
   console.log('(00)-genTextBody-:textBodyNode:', textBodyNode)
   // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText -textBodyNode:', textBodyNode)
   const pFontStyle = getTextByPathList(spNode, ['p:style', 'a:fontRef'])
-
+  
   const pNode = textBodyNode['a:p']
   // console.log('(00)-genTextBody-:pNode:', pNode)
   const pNodes = pNode.constructor === Array ? pNode : [pNode]
-
+  
   const listTypes = []
-
+  console.log('(00)-genTextBody-:new---spNode:', spNode)
+  console.log('(00)-genTextBody-:new---pNodes:', pNodes)
+  const cutLineResult = parsePPTTextToLines(spNode, width)
+  // const fontSize = getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles, textBodyNode, pNode)
+  console.log('(00)-genTextBody-:new---切行结果----cutLineResult:', cutLineResult)
+  
   for (const pNode of pNodes) {
     // console.log('(00)-genTextBody-:pNode:', pNode)
     let rNode = pNode['a:r']
@@ -103,6 +255,8 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
       let prevStyleInfo = null
       let accumulatedText = ''
       let defaultLineHight = false
+      let defaultLineHight11 = false
+      const lineHight11 = rNode.length > 1
       for (const rNodeItem of rNode) {
         const styleInfo = getSpanStyleInfo(rNodeItem, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
 
@@ -131,16 +285,30 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
 
         // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText -inFor:', accumulatedText)
         defaultLineHight = styleInfo.lineHight115
+        defaultLineHight11 = styleInfo.lineHight11
       }
       if (accumulatedText && prevStyleInfo) {
         // const processedText = accumulatedText.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
         const processedText = accumulatedText
         text += `<span style="${prevStyleInfo.styleText}">${processedText}</span>`
       }
+      if (abs) {
+        defaultLineHight
+        lineHight11
+      }
+      // if (defaultLineHight || !(spacing && spacing.lineSpacing)) {
       if (defaultLineHight) {
         text = addStyleToTag(text, 'span', 'line-height: 1.15')
         console.log('(00)-getSpanStyleInfo----aRpr:-----accumulatedText-------------------------------------------------:', accumulatedText)
       }
+      if (defaultLineHight11) {
+        text = addStyleToTag(text, 'span', 'line-height: 1.1')
+        console.log('(00)-getSpanStyleInfo----aRpr:-----accumulatedText-------------------------------------------------:', accumulatedText)
+      }
+      // else if (lineHight11) {
+      //   text = addStyleToTag(text, 'span', 'line-height: 1.1')
+      // }
+
     }
 
     if (listType) text += '</li>'
@@ -175,12 +343,12 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
     }
     // // console.log('(00)-dsfjslkjflas:-result:', result)
     if (result && result.length === 1 && result[0].isTonePinyin) {
-      text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; word-break: keep-all; white-space: nowrap')
+      text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; line-break: strict; word-break: keep-all; overflow-wrap: break-word; white-space: nowrap')
       // // console.log('(00)-dsfjslkjflas:-result:23412', '强制不换行')
     }
     else {
       // text = addStyleToTag(text, 'span', 'white-space: pre-wrap; line-height: 2')
-      text = addStyleToTag(text, 'span', 'white-space: pre-wrap')
+      text = addStyleToTag(text, 'span', 'line-break: strict; overflow-wrap: break-word; white-space: pre-wrap')
     }
     // // console.log('(00)-pptxtojson-genTextBody---text:---最终:', text)
   }
@@ -190,7 +358,49 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
     console.log('(00)-------text:有&nbsp:', text)
     text = text.replace('&nbsp;', ' ')
   }
+
+  text = replaceSpaceInUnderlineSpan(text)
+  // if (!text.includes('line-height')) {
+  //   text = addStyleToTag(text, 'span', 'line-height: 1.1')
+  // }
   return text
+}
+
+/**
+ * 处理HTML字符串：给带下划线的span替换空格为透明占位符
+ * @param {string} htmlStr - 传入的元素HTML字符串
+ * @returns {string} 处理后的HTML字符串
+ */
+function replaceSpaceInUnderlineSpan(htmlStr) {
+  // 1. 创建临时DOM容器解析HTML字符串（安全解析，不渲染到页面）
+  const tempContainer = document.createElement('div')
+  tempContainer.innerHTML = htmlStr
+
+  // 2. 获取所有span元素
+  const spanList = tempContainer.querySelectorAll('span')
+
+  // 3. 遍历每个span进行处理
+  spanList.forEach(span => {
+    // 获取元素的行内样式（处理style属性）
+    const style = span.style
+    
+    // 判断：是否包含 text-decoration: underline / underline 相关样式
+    const hasUnderline = style.textDecoration.includes('underline') || 
+                        style.textDecorationLine === 'underline'
+
+    if (hasUnderline) {
+      // 4. 有下划线：替换所有空格为透明占位标签
+      // 替换规则：空格 → 透明"占"字标签
+      // const replaceStr = '<span style="color:transparent "> </span>'
+      const replaceStr = '<span> </span>'
+      // span.innerHTML = span.innerHTML.replace(/ /g, replaceStr)
+      span.innerHTML = span.innerHTML.replace(/\s/g, replaceStr)
+    }
+  })
+
+  console.log('(00)-replaceSpaceInUnderlineSpan--tempContainer.innerHTML:', tempContainer.innerHTML)
+  // 5. 返回处理后的HTML字符串
+  return tempContainer.innerHTML
 }
 
 /**
@@ -358,6 +568,7 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   let styleText = ''
   const fontColor = getFontColor(node, pNode, lstStyle, pFontStyle, lvl, warpObj)
   const fontSize = getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles, textBodyNode, pNode)
+  console.log('(00)-genTextBody-:new-----fontSize:)', fontSize)
   const fontType = getFontType(node, type, warpObj, slideLayoutSpNode, slideMasterSpNode, slideMasterTextStyles)
   const fontBold = getFontBold(node)
   const fontItalic = getFontItalic(node)
@@ -399,15 +610,20 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
 
   const aRpr = getTextByPathList(node, ['a:rPr', 'attrs'])
   let lineHight115
-  if (aRpr && aRpr.sz) {
-    lineHight115 = aRpr.sz === '2800' && text.length > 40
-    if (lineHight115) {
-      console.log('(00)-getSpanStyleInfo----aRpr:', aRpr.sz, '--lineHight115:', lineHight115, '---text:', text)
-    }
+  let lineHight11
+  if (aRpr && aRpr.b) {
+    // lineHight115 = aRpr.sz === '2800' && text.length > 40 && aRpr.b === '1'
+    lineHight115 = aRpr.sz === '2800' && aRpr.b === '1' && text.length > 40
+    lineHight11 = lineHight115 || aRpr.sz === '2800' && aRpr.b === '1' && text.length > 20
+    // lineHight115 = aRpr.b === '1'
+    // lineHight115 = aRpr.sz === '2800' 
+    // if (lineHight115) {
+    // console.log('(00)-getSpanStyleInfo----aRpr:', aRpr.sz, '--lineHight115:', lineHight115, '---text:', text)
+    // }
     // if (text.length > 10) {
     //   console.log('(00)-getSpanStyleInfo----aRpr:------>10:', aRpr.sz, '--lineHight115:', lineHight115, '---text:', text)
     // }
-    console.log('(00)-getSpanStyleInfo----aRpr:------>10:', aRpr.sz, '--lineHight115:', lineHight115, '---text:', text)
+    // console.log('(00)-getSpanStyleInfo----aRpr:------>10:', aRpr.sz, '--lineHight115:', lineHight115, '---text:', text)
   }
 
   return {
@@ -415,6 +631,7 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
     text,
     hasLink,
     linkURL: hasLink ? warpObj['slideResObj'][linkID]['target'] : null,
-    lineHight115
+    lineHight115,
+    lineHight11
   }
 }
