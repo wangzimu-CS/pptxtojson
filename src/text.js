@@ -107,6 +107,27 @@ function parsePPTTextToLinesNew(shapeData, width) {
 }
 
 
+// 生成字符级样式数组
+function getCharStyleList(fullText, runList) {
+  const textLength = fullText.length
+  const charStyleList = new Array(textLength)
+
+  // 遍历每个文本片段区间，把样式填充到对应字符位置
+  for (const run of runList) {
+    const { start, end } = run
+
+    // 安全边界判断
+    if (start < 0 || end > textLength || start >= end) continue
+
+    // 从 start ~ end-1 每个字符都赋值为该段样式
+    for (let i = start; i < end; i++) {
+      charStyleList[i] = { ...run }
+    }
+  }
+
+  return charStyleList
+}
+
 function parsePPTTextToLines(shapeData, width, getStyleUseInfo, paragraphInfo) {
   if (!shapeData || typeof shapeData !== 'object') return []
 
@@ -179,8 +200,10 @@ function parsePPTTextToLines(shapeData, width, getStyleUseInfo, paragraphInfo) {
       }
     }
 
+    const charStyleList = getCharStyleList(fullText, runList)
+
     const charWidth = realFontSize
-    const lines = wrapTextProfessional(fullText, textBoxWidthPx - 10, charWidth)
+    const lines = wrapTextProfessional(fullText, textBoxWidthPx, charWidth, charStyleList)
 
     // ===================== 正确生成 HTML =====================
     const lineSpans = []
@@ -268,6 +291,51 @@ function getRunStyle(r, defaultFontSize) {
   return { style }
 }
 
+
+/**
+ * 获取单个字符在指定样式下的实际宽度（px）
+ * @param {string} char - 单个字符（a/i/m/1/,...）
+ * @param {string} fontSize - 字号，如 '16px'
+ * @param {string} fontFamily - 字体，如 'Arial'
+ * @param {string} fontWeight - 字重 默认 'normal'
+ * @returns {number} 宽度 px
+ */
+function getCharWidth(
+  char,
+  fontSize = '16px',
+  fontFamily = 'Arial',
+  fontWeight = 'normal'
+) {
+  const span = document.createElement('span')
+  // 必须白边、不换行、不影响布局
+  span.style.visibility = 'hidden'
+  span.style.position = 'absolute'
+  span.style.whiteSpace = 'nowrap'
+  span.style.fontSize = fontSize
+  span.style.fontFamily = fontFamily
+  span.style.fontWeight = fontWeight
+  span.textContent = char
+
+  document.body.appendChild(span)
+  const width = span.offsetWidth
+  document.body.removeChild(span)
+
+  return width
+}
+
+/**
+ * 判断单个字符是否为全角字符
+ * @param {string} char - 单个字符
+ * @returns {boolean} true=全角，false=半角
+ */
+function isFullWidthChar(char) {
+  // 匹配：中文汉字 + 全角符号(全角英文/数字/标点)
+  const fullWidthReg = /[\u4E00-\u9FFF\uFF00-\uFFEF]/
+  // 必须是单个字符才判断
+  // console.log('(00)---全半角字符判断：', char, char.length === 1 && fullWidthReg.test(char))
+  return char.length === 1 && fullWidthReg.test(char)
+}
+
 /**
  * 真正正确的 PPT 中文自动换行
  * 汉字 = 全宽
@@ -275,7 +343,7 @@ function getRunStyle(r, defaultFontSize) {
  * 严格按像素计算
  * 标点不出现在行首
  */
-function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth) {
+function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList) {
   if (typeof text !== 'string' || text === '') return []
   if (maxLineWidthPx <= 0 || fullCharWidth <= 0) return []
 
@@ -294,17 +362,40 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth) {
     ' ', ' ', ' ', ' ', '\t',
     ',', '.', ';', ':', '!', '?', '"', ')', ']'
   ])
-
+  let index = 0
   for (const char of text) {
     // ✅ 关键修复：空格 != 汉字宽度
-    const charW = HALF_WIDTH_CHARS.has(char) ? halfCharWidth : fullCharWidth
+    // const charW = HALF_WIDTH_CHARS.has(char) ? halfCharWidth : fullCharWidth
+    const charW1 = HALF_WIDTH_CHARS.has(char) ? halfCharWidth : fullCharWidth
+    // const charW = isFullWidthChar(char) && (!HALF_WIDTH_CHARS.has(char)) ? fullCharWidth : halfCharWidth
+    const charIsFullWidth = isFullWidthChar(char)
+    const charW = charIsFullWidth || char === '。' ? fullCharWidth : halfCharWidth
+    console.log('(00)---全半角字符判断：charW', char, charIsFullWidth, charW, charW1)
+    console.log('(00)---全半角字符判断：HALF_WIDTH_CHARS.has(char)', char, HALF_WIDTH_CHARS.has(char), charW1)
+
+    let useCharW = charW
+    if (charStyleList && charStyleList.length >= index) {
+      const curStyle = charStyleList[index].style
+      console.log('(00)---全半角字符判断：当前字符样式：', char, curStyle)
+      const fontSize = curStyle['font-size']
+      const fontFamily = curStyle['font-family']
+      const fontWeight = curStyle['font-weight']
+      const realCharW = getCharWidth(char, fontSize, fontFamily, fontWeight) || charW
+      console.log('(00)---全半角字符判断：charW-realCharW:', char, charW, realCharW)
+      useCharW = realCharW
+    }
+    // console.log('(00)---全半角字符判断：当前字符样式：', char, charStyleList)
+
+
+    // isFullWidthChar(char) && (!HALF_WIDTH_CHARS.has(char)) ? fullCharWidth : halfCharWidth
+    HALF_WIDTH_CHARS.has(char)
 
     // 超宽判断
-    if (currentWidth + charW > maxLineWidthPx) {
+    if (currentWidth + useCharW > maxLineWidthPx) {
       // 标点不能放行首
       if (NO_LINE_START.has(char)) {
         currentLine += char
-        currentWidth += charW
+        currentWidth += useCharW
         lines.push(currentLine)
         currentLine = ''
         currentWidth = 0
@@ -312,13 +403,15 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth) {
       else {
         lines.push(currentLine)
         currentLine = char
-        currentWidth = charW
+        currentWidth = useCharW
       }
     }
     else {
       currentLine += char
-      currentWidth += charW
+      currentWidth += useCharW
     }
+
+    index++
   }
 
   if (currentLine !== '') {
