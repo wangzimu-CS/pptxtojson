@@ -184,14 +184,16 @@ function parsePPTTextToLines(shapeData, width, getStyleUseInfo, paragraphInfo) {
         const end = fullText.length
         const rNodeItem = r
         const styleInfo = getSpanStyleInfo(rNodeItem, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
-        console.log('(00)-pptxtojson-text-parsePPTTextToLines-styleInfo:', styleInfo)
+        console.log('(00)-pptxtojson-text-parsePPTTextToLines-styleInfo:1212', styleInfo)
         const style = getRunStyle(r, realFontSize)
         console.log('(00)-pptxtojson-text-parsePPTTextToLines-styleInfo:---style:', style)
         let styleText
+        let styleObj
         if (styleInfo) {
           styleText = styleInfo.styleText
+          styleObj = styleInfo.styleObj
         }
-        runList.push({ start, end, text, ...style, styleText })
+        runList.push({ start, end, text, ...style, styleText, styleObj })
       }
 
       if (r && r['a:rPr'] && r['a:rPr'].attrs && r['a:rPr'].attrs.sz) {
@@ -203,40 +205,89 @@ function parsePPTTextToLines(shapeData, width, getStyleUseInfo, paragraphInfo) {
     const charStyleList = getCharStyleList(fullText, runList)
 
     const charWidth = realFontSize
-    const lines = wrapTextProfessional(fullText, textBoxWidthPx, charWidth, charStyleList)
+    const lines = wrapTextProfessional(fullText, textBoxWidthPx - 10, charWidth, charStyleList)
 
     // ===================== 正确生成 HTML =====================
     const lineSpans = []
-    let currentPos = 0
-
+    const currentPos = 0
     for (const line of lines) {
       const lineLen = line.length
       const lineStart = currentPos
       const lineEnd = currentPos + lineLen
-      currentPos = lineEnd
-
-      const parts = []
-      for (const run of runList) {
-        if (run.end <= lineStart || run.start >= lineEnd) continue
-        const s = Math.max(run.start, lineStart) - run.start
-        const e = Math.min(run.end, lineEnd) - run.start
-        const txt = run.text.slice(s, e)
-
-        let styleStr = ''
-        for (const key in run.style) {
-          styleStr += key + ':' + run.style[key] + ';'
-        }
-        if (run.styleText) {
-          parts.push('<span style="' + run.styleText + '">' + txt + '</span>')
+      // currentPos = lineEnd
+      lineEnd
+      console.log('(00)-genTextBody-:new-切行结果-line_in_lines:', line, lineLen)
+      lineStart
+      // let charIndex = lineStart
+      let curStyleText = charStyleList[0].styleText
+      let curSpan = `<span style="${curStyleText}">` 
+      for (let i = 0; i < line.length; i++) {
+        // console.log('(00)-genTextBody-:new-切行结果-line_in_lines:[charIndex,char]', charIndex, line[i])
+        if (curStyleText === charStyleList[i].styleText) {
+          curSpan += line[i]
         }
         else {
-          parts.push('<span style="' + styleStr + '">' + txt + '</span>')
+          curStyleText = charStyleList[i].styleText
+          curSpan += `</span><span style="${curStyleText}">` 
         }
+        // console.log('(00)-genTextBody-:new-切行结果-line_in_lines:[char,当前样式]',  '【', line[i], '】', charStyleList[i])
+        // charIndex += 1
       }
+      curSpan += '</span>'
+      console.log('(00)-genTextBody-:new-切行结果-line_in_lines:[curSpan]', line, curSpan)
+      // lineSpans.push('<span style=" white-space: pre ">' + curSpan + '</span>')
+      // const parts = []
+      // for (const run of runList) {
+      //   if (run.end <= lineStart || run.start >= lineEnd) continue
+      //   const s = Math.max(run.start, lineStart) - run.start
+      //   const e = Math.min(run.end, lineEnd) - run.start
+      //   const txt = run.text.slice(s, e)
+
+      //   let styleStr = ''
+      //   for (const key in run.style) {
+      //     styleStr += key + ':' + run.style[key] + ';'
+      //   }
+      //   if (run.styleText) {
+      //     parts.push('<span style="' + run.styleText + '">' + txt + '</span>')
+      //   }
+      //   else {
+      //     parts.push('<span style="' + styleStr + '">' + txt + '</span>')
+      //   }
+      // }
 
       // 行 span 无任何样式！
-      lineSpans.push('<span style=" white-space: pre ">' + parts.join('') + '</span>')
+      lineSpans.push('<span style=" white-space: pre ">' + curSpan + '</span>')
     }
+
+    // for (const line of lines) {
+    //   // console.log('(00)-genTextBody-:new-切行结果-line_in_lines:', line)
+    //   const lineLen = line.length
+    //   const lineStart = currentPos
+    //   const lineEnd = currentPos + lineLen
+    //   currentPos = lineEnd
+
+    //   const parts = []
+    //   for (const run of runList) {
+    //     if (run.end <= lineStart || run.start >= lineEnd) continue
+    //     const s = Math.max(run.start, lineStart) - run.start
+    //     const e = Math.min(run.end, lineEnd) - run.start
+    //     const txt = run.text.slice(s, e)
+
+    //     let styleStr = ''
+    //     for (const key in run.style) {
+    //       styleStr += key + ':' + run.style[key] + ';'
+    //     }
+    //     if (run.styleText) {
+    //       parts.push('<span style="' + run.styleText + '">' + txt + '</span>')
+    //     }
+    //     else {
+    //       parts.push('<span style="' + styleStr + '">' + txt + '</span>')
+    //     }
+    //   }
+
+    //   // 行 span 无任何样式！
+    //   lineSpans.push('<span style=" white-space: pre ">' + parts.join('') + '</span>')
+    // }
 
     const paraStyle = {}
     // const paragraphHtml = '<p style="">' + lineSpans.join('') + '</p>'
@@ -322,6 +373,23 @@ function getCharWidth(
 
   return width
 }
+// 高精度测量：用 getBoundingClientRect() 而不是 offsetWidth（支持小数）
+function getPreciseWidth(char, fontSize = '30px', fontFamily = 'Arial', fontWeight = 'normal') {
+  const span = document.createElement('span')
+  span.style.visibility = 'hidden'
+  span.style.position = 'absolute'
+  span.style.whiteSpace = 'nowrap'
+  span.style.fontSize = fontSize
+  span.style.fontFamily = fontFamily
+  span.style.fontWeight = fontWeight
+  span.style.letterSpacing = 'normal'
+  span.textContent = char
+  document.body.appendChild(span)
+  const rect = span.getBoundingClientRect()
+  document.body.removeChild(span)
+  // console.log('(00)---全半角字符判断：charW-realCharW-realCharW1:--getPreciseWidth-rect.width', rect.width)
+  return rect.width // 小数宽度！
+}
 
 /**
  * 判断单个字符是否为全角字符
@@ -367,22 +435,31 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList
     // ✅ 关键修复：空格 != 汉字宽度
     // const charW = HALF_WIDTH_CHARS.has(char) ? halfCharWidth : fullCharWidth
     const charW1 = HALF_WIDTH_CHARS.has(char) ? halfCharWidth : fullCharWidth
+    charW1
     // const charW = isFullWidthChar(char) && (!HALF_WIDTH_CHARS.has(char)) ? fullCharWidth : halfCharWidth
     const charIsFullWidth = isFullWidthChar(char)
     const charW = charIsFullWidth || char === '。' ? fullCharWidth : halfCharWidth
-    console.log('(00)---全半角字符判断：charW', char, charIsFullWidth, charW, charW1)
-    console.log('(00)---全半角字符判断：HALF_WIDTH_CHARS.has(char)', char, HALF_WIDTH_CHARS.has(char), charW1)
+    // console.log('(00)---全半角字符判断：charW', char, charIsFullWidth, charW, charW1)
+    // console.log('(00)---全半角字符判断：HALF_WIDTH_CHARS.has(char)', char, HALF_WIDTH_CHARS.has(char), charW1)
 
     let useCharW = charW
     if (charStyleList && charStyleList.length >= index) {
-      const curStyle = charStyleList[index].style
-      console.log('(00)---全半角字符判断：当前字符样式：', char, curStyle)
-      const fontSize = curStyle['font-size']
-      const fontFamily = curStyle['font-family']
-      const fontWeight = curStyle['font-weight']
+
+      // const curStyle = charStyleList[index].style
+      // const fontSize = curStyle['font-size']
+      // const fontFamily = curStyle['font-family']
+      // const fontWeight = curStyle['font-weight']
+      const curStyle = charStyleList[index].styleObj
+      const {fontSize, fontFamily, fontWeight} = curStyle
+      
+
       const realCharW = getCharWidth(char, fontSize, fontFamily, fontWeight) || charW
-      console.log('(00)---全半角字符判断：charW-realCharW:', char, charW, realCharW)
-      useCharW = realCharW
+      const realCharW1 = getPreciseWidth(char, fontSize, fontFamily, fontWeight) || charW
+      // console.log('(00)---全半角字符判断：当前字符样式：', 'fullText:', text, '__index【', index, '】--char:【', char, '】---', curStyle, charStyleList)
+      // console.log('(00)---全半角字符判断：charW-realCharW-realCharW1:-[char, fontSize, fontFamily, fontWeight]', char, fontSize, fontFamily, fontWeight)
+      // console.log('(00)---全半角字符判断：charW-realCharW-realCharW1:', char, charW, realCharW, realCharW1)
+      realCharW
+      useCharW = realCharW1
     }
     // console.log('(00)---全半角字符判断：当前字符样式：', char, charStyleList)
 
@@ -1166,9 +1243,20 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
     // }
     // console.log('(00)-getSpanStyleInfo----aRpr:------>10:', aRpr.sz, '--lineHight115:', lineHight115, '---text:', text)
   }
-
+  const styleObj = {
+    fontSize: fontSize.replace('pt', 'px'),
+    fontType,
+    fontBold,
+    fontItalic,
+    fontDecoration,
+    fontDecorationLine,
+    fontSpace,
+    subscript,
+    shadow,
+  }
   return {
     styleText,
+    styleObj,
     text,
     hasLink,
     linkURL: hasLink ? warpObj['slideResObj'][linkID]['target'] : null,
