@@ -3,10 +3,17 @@ import { numberToFixed } from './utils'
 
 export function getPosition(slideSpNode, slideLayoutSpNode, slideMasterSpNode) {
   let off
-
+  console.log('(00)-getPosition-[slideSpNode, slideLayoutSpNode, slideMasterSpNode]:', slideSpNode, slideLayoutSpNode, slideMasterSpNode)
   if (slideSpNode) off = slideSpNode['a:off']['attrs']
   else if (slideLayoutSpNode) off = slideLayoutSpNode['a:off']['attrs']
   else if (slideMasterSpNode) off = slideMasterSpNode['a:off']['attrs']
+
+  if (slideSpNode) {
+    console.log('(00)-getPosition-[off]:', off)
+  }
+  else {
+    console.log('(00)-getPosition-[off]:--------!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!', off)
+  }
 
   if (!off) return { top: 0, left: 0 }
 

@@ -94,8 +94,8 @@ function parsePPTTextToLinesNew(shapeData, width) {
     // const lines = wrapTextReal(fullText, textBoxWidthPx, charWidth)
     // const lines = wrapTextReal(fullText, newTextBoxWidthPx, newCharWidth)
     const lines = wrapTextProfessional(fullText, textBoxWidthPx - 20, charWidth)
-    console.log('(00)-genTextBody-:new---切行结果----lines:[textBoxWidthPx, charWidth]:', textBoxWidthPx, charWidth)
-    console.log('(00)-genTextBody-:new---切行结果----lines:', lines)
+    // console.log('(00)-genTextBody-:new---切行结果----lines:[textBoxWidthPx, charWidth]:', textBoxWidthPx, charWidth)
+    // console.log('(00)-genTextBody-:new---切行结果----lines:', lines)
 
     result.push({
       text: fullText,
@@ -113,17 +113,38 @@ function getCharStyleList(fullText, runList) {
   const charStyleList = new Array(textLength)
 
   // 遍历每个文本片段区间，把样式填充到对应字符位置
-  for (const run of runList) {
-    const { start, end } = run
+  // for (const run of runList) {
+  //   const { start, end } = run
 
-    // 安全边界判断
-    if (start < 0 || end > textLength || start >= end) continue
+  //   // 安全边界判断
+  //   if (start < 0 || end > textLength || start >= end) continue
 
-    // 从 start ~ end-1 每个字符都赋值为该段样式
-    for (let i = start; i < end; i++) {
-      charStyleList[i] = { ...run }
+  //   // 从 start ~ end-1 每个字符都赋值为该段样式
+  //   for (let i = start; i < end; i++) {
+  //     charStyleList[i] = { ...run }
+  //     console.log('(00)-genTextBody-:new-切行结果-charStyleList:【charStyleList[i], run】:', charStyleList[i], run)
+  //   }
+  // }
+  let curGetIndex = 0
+  for (let i = 0;i < fullText.length;i++) {
+    const curChar = fullText[i]
+    curChar
+    const curStyle = runList[curGetIndex]
+    // console.log('(00)-genTextBody-:new-切行结果-charStyleList:curStyle:', curStyle, runList)
+    
+    if (curStyle.start <= i && curStyle.end > i) {
+      // charStyleList.push(runList[curGetIndex])
     }
+    else if (curStyle.end === i) {
+      curGetIndex++
+    }
+    else {
+      // console.log('(00)-genTextBody-:new-切行结果-charStyleList:【curStyle.end,i】:', curStyle.end, i)
+      // console.log('(00)-genTextBody-:new-切行结果-charStyleList:异常！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！')
+    }
+    charStyleList[i] = { char: `【${curChar}】`, ...runList[curGetIndex]}
   }
+  // console.log('(00)-genTextBody-:new-切行结果-charStyleList:【fullText.length, charStyleList.length】:', fullText.length, charStyleList.length)
 
   return charStyleList
 }
@@ -164,7 +185,7 @@ function parsePPTTextToLines(shapeData, width, getStyleUseInfo, paragraphInfo) {
   paragraphs = Array.isArray(paragraphs) ? paragraphs : [paragraphs]
 
   const result = []
-
+  console.log('(00)-parsePPTTextToLines:【paragraphs】:', paragraphs)
   for (const p of paragraphs) {
     if (!p) continue
     let runs = p['a:r']
@@ -184,9 +205,9 @@ function parsePPTTextToLines(shapeData, width, getStyleUseInfo, paragraphInfo) {
         const end = fullText.length
         const rNodeItem = r
         const styleInfo = getSpanStyleInfo(rNodeItem, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
-        console.log('(00)-pptxtojson-text-parsePPTTextToLines-styleInfo:1212', styleInfo)
+        // console.log('(00)-pptxtojson-text-parsePPTTextToLines-styleInfo:1212', styleInfo)
         const style = getRunStyle(r, realFontSize)
-        console.log('(00)-pptxtojson-text-parsePPTTextToLines-styleInfo:---style:', style)
+        // console.log('(00)-pptxtojson-text-parsePPTTextToLines-styleInfo:---style:', style)
         let styleText
         let styleObj
         if (styleInfo) {
@@ -203,38 +224,55 @@ function parsePPTTextToLines(shapeData, width, getStyleUseInfo, paragraphInfo) {
     }
 
     const charStyleList = getCharStyleList(fullText, runList)
+    // console.log('(00)-genTextBody-:new-切行结果-charStyleList:lineChar:【', lineChar, '】', '当前样式', charStyleList[i])
+    // console.log('(00)-genTextBody-:new-切行结果-charStyleList:【fullText, charStyleList】:', fullText, charStyleList)
 
     const charWidth = realFontSize
-    const lines = wrapTextProfessional(fullText, textBoxWidthPx - 10, charWidth, charStyleList)
+    let lines
+    if (fullText.length > 5 && fullText.includes(' ')) {
+      lines = wrapTextProfessional(fullText, textBoxWidthPx - 15, charWidth, charStyleList)
+    }
+    else {
+      lines = wrapTextProfessional(fullText, textBoxWidthPx, charWidth, charStyleList)
+    }
 
     // ===================== 正确生成 HTML =====================
     const lineSpans = []
-    const currentPos = 0
+    let currentPos = 0
+    // console.log('(00)-genTextBody-:new-切行结果-lines:', lines)
     for (const line of lines) {
+      // console.log('(00)-genTextBody-:new-切行结果-lines:line', line)
+      // console.log('(00)-genTextBody-:new-切行结果-lines:line.length', line.length)
       const lineLen = line.length
       const lineStart = currentPos
       const lineEnd = currentPos + lineLen
       // currentPos = lineEnd
       lineEnd
-      console.log('(00)-genTextBody-:new-切行结果-line_in_lines:', line, lineLen)
+      // console.log('(00)-genTextBody-:new-切行结果-line_in_lines:', line, lineLen)
+      // console.log('(00)-genTextBody-:new-切行结果-line_in_lines:', line, lineLen)
       lineStart
       // let charIndex = lineStart
       let curStyleText = charStyleList[0].styleText
       let curSpan = `<span style="${curStyleText}">` 
       for (let i = 0; i < line.length; i++) {
         // console.log('(00)-genTextBody-:new-切行结果-line_in_lines:[charIndex,char]', charIndex, line[i])
-        if (curStyleText === charStyleList[i].styleText) {
+        const lineChar = line[i]
+        lineChar
+        const thisStyle = charStyleList[currentPos] 
+        currentPos ++
+        // console.log('(00)-genTextBody-:new-切行结果-lines:lineChar:【', lineChar, '】', 'index:【', i, '】', '当前样式', thisStyle)
+        if (curStyleText === thisStyle.styleText) {
           curSpan += line[i]
         }
         else {
-          curStyleText = charStyleList[i].styleText
-          curSpan += `</span><span style="${curStyleText}">` 
+          curStyleText = thisStyle.styleText
+          curSpan += `</span><span style="${curStyleText}">` + line[i]
         }
         // console.log('(00)-genTextBody-:new-切行结果-line_in_lines:[char,当前样式]',  '【', line[i], '】', charStyleList[i])
         // charIndex += 1
       }
       curSpan += '</span>'
-      console.log('(00)-genTextBody-:new-切行结果-line_in_lines:[curSpan]', line, curSpan)
+      // console.log('(00)-genTextBody-:new-切行结果-line_in_lines:[curSpan]', line, curSpan)
       // lineSpans.push('<span style=" white-space: pre ">' + curSpan + '</span>')
       // const parts = []
       // for (const run of runList) {
@@ -256,7 +294,9 @@ function parsePPTTextToLines(shapeData, width, getStyleUseInfo, paragraphInfo) {
       // }
 
       // 行 span 无任何样式！
-      lineSpans.push('<span style=" white-space: pre ">' + curSpan + '</span>')
+      lineSpans.push('<span style=" white-space: pre ">' + curSpan + '</span><br>')
+      // console.log('(00)-genTextBody-:new-切行结果-lines:curSpan:【', line, '】', 'curSpan:', curSpan)
+
     }
 
     // for (const line of lines) {
@@ -295,9 +335,9 @@ function parsePPTTextToLines(shapeData, width, getStyleUseInfo, paragraphInfo) {
     let paragraphHtml = '<p style="">' + linesString + '</p>'
     if (paragraphInfo && paragraphInfo.start && paragraphInfo.end) {
       paragraphHtml = paragraphInfo.start + linesString + paragraphInfo.end
-      console.log('(00)-genTextBody-:new---切行结果----text--------------------:paragraphInfo:', paragraphInfo, paragraphHtml)
-      console.log('(00)-genTextBody-:new---切行结果----text--------------------:linesString:', linesString)
-      console.log('(00)-genTextBody-:new---切行结果----text--------------------:lines:', lines)
+      // console.log('(00)-genTextBody-:new---切行结果----text--------------------:paragraphInfo:', paragraphInfo, paragraphHtml)
+      // console.log('(00)-genTextBody-:new---切行结果----text--------------------:linesString:', linesString)
+      // console.log('(00)-genTextBody-:new---切行结果----text--------------------:lines:', lines)
       
     }
 
@@ -309,7 +349,7 @@ function parsePPTTextToLines(shapeData, width, getStyleUseInfo, paragraphInfo) {
       paraStyle: paraStyle
     })
   }
-  console.log('(00)-genTextBody-:new---切行结果----text--------------------:result:--result:', result)
+  console.log('(00)-genTextBody-:new-切行结果-lines:result', result)
   return result
 }
 
@@ -425,6 +465,7 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList
     '，', '。', '、', '；', '：', '）', '”', '！', '？', '…'
   ])
 
+  const spicalChar = new Set(['“', '”'])
   // 空格、英文标点使用半宽
   const HALF_WIDTH_CHARS = new Set([
     ' ', ' ', ' ', ' ', '\t',
@@ -458,8 +499,10 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList
       // console.log('(00)---全半角字符判断：当前字符样式：', 'fullText:', text, '__index【', index, '】--char:【', char, '】---', curStyle, charStyleList)
       // console.log('(00)---全半角字符判断：charW-realCharW-realCharW1:-[char, fontSize, fontFamily, fontWeight]', char, fontSize, fontFamily, fontWeight)
       // console.log('(00)---全半角字符判断：charW-realCharW-realCharW1:', char, charW, realCharW, realCharW1)
+      console.log('(00)-wrapTextProfessional:-【char, curStyle】:', char, curStyle)
+
       realCharW
-      useCharW = realCharW1
+      useCharW = spicalChar.has(char) ? fullCharWidth : realCharW1
     }
     // console.log('(00)---全半角字符判断：当前字符样式：', char, charStyleList)
 
@@ -467,8 +510,11 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList
     // isFullWidthChar(char) && (!HALF_WIDTH_CHARS.has(char)) ? fullCharWidth : halfCharWidth
     HALF_WIDTH_CHARS.has(char)
 
+    const useMaxLineWidthPx = maxLineWidthPx
+    // console.log('(00)-wrapTextProfessional:-【char, useCharW】:', char, useCharW)
+    console.log('(00)-wrapTextProfessional:-【useCharW, currentWidth, useMaxLineWidthPx】:【', char, '】【', char.charCodeAt(0), '】-', useCharW, '-', fullCharWidth, '-', currentWidth + useCharW, '-', useMaxLineWidthPx)
     // 超宽判断
-    if (currentWidth + useCharW > maxLineWidthPx) {
+    if (currentWidth + useCharW > useMaxLineWidthPx) {
       // 标点不能放行首
       if (NO_LINE_START.has(char)) {
         currentLine += char
@@ -766,6 +812,10 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
       if (spacing.lineSpacing) styleText += `line-height: ${spacing.lineSpacing};`
       if (spacing.spaceBefore) styleText += `margin-top: ${spacing.spaceBefore};`
       if (spacing.spaceAfter) styleText += `margin-bottom: ${spacing.spaceAfter};`
+    }
+    else {
+      // styleText += `line-height: 1.2;`
+      styleText += `line-height: 1;`
     }
 
     const listType = getListType(pNode)
