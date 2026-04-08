@@ -503,6 +503,7 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList
   let index = 0
   const useNew = false
   if (!useNew) {
+    const currentWidthList = []
     for (const char of text) {
     // ✅ 关键修复：空格 != 汉字宽度
     // const charW = HALF_WIDTH_CHARS.has(char) ? halfCharWidth : fullCharWidth
@@ -545,34 +546,59 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList
       // // console.log('(00)-wrapTextProfessional:-【char, useCharW】:', char, useCharW)
       // console.log('(00)-wrapTextProfessional:-【useCharW, currentWidth, useMaxLineWidthPx】:【', char, '】【', char.charCodeAt(0), '】-', useCharW, '-', fullCharWidth, '-', currentWidth + useCharW, '-', useMaxLineWidthPx)
       // 超宽判断
-      if (currentWidth + useCharW > useMaxLineWidthPx) {
-      // const noLineEnter = isRemainingALLEmpty(index, text)
-        // const remainInfo = isRemainingALLEmpty(index, text)
-        // if (remainInfo.allInOneline) {
-        //   currentLine += remainInfo.remainChars
-        //   currentWidth += useCharW
-        //   lines.push(currentLine)
-        //   currentLine = ''
-        //   currentWidth = 0
-        // }
+      const diffW = currentWidth + useCharW - useMaxLineWidthPx
+      // const half = diffW / useCharW > 0.15 
+      diffW
+      const half = true
+      if (currentWidth + useCharW > useMaxLineWidthPx && half) {
         // 标点不能放行首
         if (NO_LINE_START.has(char)) {
         // if (noLineEnter) {
           currentLine += char
           currentWidth += useCharW
+          currentWidthList.push(useCharW)
+          const endWithLeftSymbol = checkLastIsLeftSymbol(currentLine)
+          const endWithLeftSymbol1 = checkLastLeftSymbol(currentLine)
+          console.log('(00)-wrapTextProfessional:-【endWithLeftSymbol】:', endWithLeftSymbol, endWithLeftSymbol1, currentLine)
+          let newStr = ''
+          let newStrWidth = 0
+          if (endWithLeftSymbol1.match) {
+            removeRightChar('sadfas', 1)
+            const rmRCharsResult = removeRightChars(currentLine, endWithLeftSymbol1.rightPosition)
+            currentLine = rmRCharsResult.newStr
+            newStr = rmRCharsResult.removedChars
+            newStrWidth = sumRightNums(currentWidthList, rmRCharsResult.removedChars.length)
+          }
           lines.push(currentLine)
-          currentLine = ''
-          currentWidth = 0
+          currentLine = newStr
+          currentWidth = newStrWidth
         }
         else {
+          const endWithLeftSymbol = checkLastIsLeftSymbol(currentLine)
+          const endWithLeftSymbol1 = checkLastLeftSymbol(currentLine)
+          console.log('(00)-wrapTextProfessional:-【endWithLeftSymbol】:', endWithLeftSymbol, endWithLeftSymbol1, currentLine)
+          let newStr = ''
+          let newStrWidth = 0
+          if (endWithLeftSymbol1.match) {
+            removeRightChar('sadfas', 1)
+            const rmRCharsResult = removeRightChars(currentLine, endWithLeftSymbol1.rightPosition)
+            currentLine = rmRCharsResult.newStr
+            newStr += rmRCharsResult.removedChars
+            newStrWidth = sumRightNums(currentWidthList, rmRCharsResult.removedChars.length - 1)
+          }
           lines.push(currentLine)
-          currentLine = char
-          currentWidth = useCharW
+          currentLine = newStr + char
+          currentWidth = newStrWidth + useCharW
+          currentWidthList.push(useCharW)
+          // lines.push(currentLine)
+          // currentLine = char
+          // currentWidth = useCharW
         }
       }
       else {
         currentLine += char
         currentWidth += useCharW
+        currentWidthList.push(useCharW)
       }
 
       index++
@@ -660,10 +686,84 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList
     }
     // lines.push(currentLine)
   }
+
   console.log('(00)-isRemainingALLEmpty-[char]:--lines:', lines)
+  console.log('(00)-wrapTextProfessional:-[lines]:', lines)
 
   return lines
 }
+
+function sumRightNums(arr, n) {
+  if (!Array.isArray(arr) || n <= 0) return 0
+  const start = Math.max(0, arr.length - n)
+  const rightItems = arr.slice(start)
+  return rightItems.reduce((sum, num) => sum + Number(num) || 0, 0)
+}
+
+function removeRightChar(str, n) {
+  if (n <= 0 || n > str.length) return str
+  return str.slice(0, -n)
+}
+function removeRightChars(str, n) {
+  const len = str.length
+  
+  if (n <= 0 || n > len) {
+    return {
+      newStr: str,
+      removedChars: ''
+    }
+  }
+
+  const removedChars = str.slice(-n)
+  const newStr = str.slice(0, -n)
+  console.log('(00)-removeRightChars-[newStr, removedChars]:', newStr, '---', removedChars, '---', n)
+  return {
+    newStr,
+    removedChars
+  }
+}
+/**
+ * 判断字符串【最后一个非空格字符】是不是【各种左符号】
+ * 包含：(  [  {  《  “  ‘
+ */
+function checkLastIsLeftSymbol(str) {
+  // 1. 去掉末尾所有空格
+  const trimmed = str.trimEnd()
+
+  // 2. 空字符串直接返回 false
+  if (trimmed.length === 0) return false
+
+  // 3. 取最后一个字符
+  const last = trimmed.slice(-1)
+
+  // 4. 判断是不是【左符号】
+  const leftSymbols = ['(', '（', '[', '{', '《', '“', '‘', '《', '“', '‘', '〈', '『', '【']
+  return leftSymbols.includes(last)
+}
+
+function checkLastLeftSymbol(str) {
+  const len = str.length
+  let pos = 0
+  let char = ''
+
+  for (let i = len - 1; i >= 0; i--) {
+    pos++
+    if (str[i] !== ' ') {
+      char = str[i]
+      break
+    }
+  }
+
+  const symbols = ['(', '[', '{', '《', '〈', '『', '〖', '“', '‘', '【', '(', '（', '[', '{', '《', '“', '‘', '《', '“', '‘', '〈', '『', '【']
+  const match = symbols.includes(char)
+  
+  return {
+    match: match,
+    rightPosition: pos,
+    char: char
+  }
+}
+
 
 function isRemainingALLEmpty(curIndex, charList ) {
   const remainInfo = {
