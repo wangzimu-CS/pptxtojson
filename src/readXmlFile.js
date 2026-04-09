@@ -39,17 +39,12 @@ export function simplifyLostLess(children, parentAttributes = {}) {
 export async function readXmlFile(zip, filename) {
   try {
     const data = await zip.file(filename).async('string')
-    console.log('(00)-pptxtojson-readXmlFile---filename', filename)
     // if ( filename.includes('ppt/slides/slide1.xml') ) {
     if (/ppt\/slides\/slide\d+\.xml/.test(filename)) {
-      console.log('0-------------------------------------------------------(00)-pptxtojson-readXmlFile---filename', filename)
       const xmlData = txml.parse(data, {
         keepWhitespace: true // 禁用首尾空白修剪
       })
-      console.log('(00)-pptxtojson-readXmlFile---txml.parse(data):', xmlData)
-      console.log('(00)-pptxtojson-readXmlFile---JSON.stringify(xmlData):', JSON.stringify(xmlData).replace('"\\r\\n",', ''))
       const DeletSpaceData = JSON.parse(JSON.stringify(xmlData).replace('"\\r\\n",', ''))
-      console.log('(00)-pptxtojson-readXmlFile---DeletSpaceData:', DeletSpaceData)
       return simplifyLostLess(DeletSpaceData)
     }
     return simplifyLostLess(txml.parse(data))

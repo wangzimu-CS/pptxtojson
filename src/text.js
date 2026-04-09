@@ -94,8 +94,6 @@ function parsePPTTextToLinesNew(shapeData, width) {
     // const lines = wrapTextReal(fullText, textBoxWidthPx, charWidth)
     // const lines = wrapTextReal(fullText, newTextBoxWidthPx, newCharWidth)
     const lines = wrapTextProfessional(fullText, textBoxWidthPx - 20, charWidth)
-    // // console.log('(00)-genTextBody-:new---切行结果----lines:[textBoxWidthPx, charWidth]:', textBoxWidthPx, charWidth)
-    // // console.log('(00)-genTextBody-:new---切行结果----lines:', lines)
 
     result.push({
       text: fullText,
@@ -130,7 +128,6 @@ function getCharStyleList(fullText, runList) {
     const curChar = fullText[i]
     curChar
     const curStyle = runList[curGetIndex]
-    // // console.log('(00)-genTextBody-:new-切行结果-charStyleList:curStyle:', curStyle, runList)
     
     if (curStyle.start <= i && curStyle.end > i) {
       // charStyleList.push(runList[curGetIndex])
@@ -144,7 +141,6 @@ function getCharStyleList(fullText, runList) {
     }
     charStyleList[i] = { char: `【${curChar}】`, ...runList[curGetIndex]}
   }
-  // // console.log('(00)-genTextBody-:new-切行结果-charStyleList:【fullText.length, charStyleList.length】:', fullText.length, charStyleList.length)
 
   return charStyleList
 }
@@ -173,31 +169,17 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
   const {
     pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj
   } = getStyleUseInfo
-  const abs = false
-  if (abs) {
-    const rNodeItem = {}
-    const styleInfo = getSpanStyleInfo(rNodeItem, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
-    styleInfo
-    // // console.log('(00)styleInfo', styleInfo)
-  }
 
   let paragraphs = txBody['a:p']
   if (!paragraphs) return []
   paragraphs = Array.isArray(paragraphs) ? paragraphs : [paragraphs]
 
   const result = []
-  // // console.log('(00)-parsePPTTextToLines:【paragraphs】:', paragraphs)
   const isOnlyOneP = paragraphs.length === 1
   for (const p of paragraphs) {
     if (!p) continue
     let runs = p['a:r']
     if (!runs) continue
-    // // console.log('(00)-pptxtojson-text-parsePPTTextToLines:【runs】:', runs)
-    // let lineHightRadio = 1
-    // if (runs.length === 1) {
-    //   // console.log('(00)-pptxtojson-text-parsePPTTextToLines:【runs】:!!!!!1111111111111', runs)
-    //   lineHightRadio === 1.333
-    // }
     runs = Array.isArray(runs) ? runs : [runs]
 
     let fullText = ''
@@ -211,9 +193,7 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
         const end = fullText.length
         const rNodeItem = r
         const styleInfo = getSpanStyleInfo(rNodeItem, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
-        // // console.log('(00)-pptxtojson-text-parsePPTTextToLines-styleInfo:1212', styleInfo)
         const style = getRunStyle(r, realFontSize)
-        // // console.log('(00)-pptxtojson-text-parsePPTTextToLines-styleInfo:---style:', style)
         let styleText
         let styleObj
         if (styleInfo) {
@@ -230,13 +210,11 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
     }
 
     const charStyleList = getCharStyleList(fullText, runList)
-    // // console.log('(00)-genTextBody-:new-切行结果-charStyleList:lineChar:【', lineChar, '】', '当前样式', charStyleList[i])
-    // // console.log('(00)-genTextBody-:new-切行结果-charStyleList:【fullText, charStyleList】:', fullText, charStyleList)
 
     const charWidth = realFontSize
     let lines
     if (fullText.length > 5 && fullText.includes(' ')) {
-      lines = wrapTextProfessional(fullText, textBoxWidthPx - 15, charWidth, charStyleList)
+      lines = wrapTextProfessional(fullText, textBoxWidthPx - 13, charWidth, charStyleList)
     }
     else {
       lines = wrapTextProfessional(fullText, textBoxWidthPx, charWidth, charStyleList)
@@ -245,40 +223,32 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
     // ===================== 正确生成 HTML =====================
     const lineSpans = []
     let currentPos = 0
-    // // console.log('(00)-genTextBody-:new-切行结果-lines:', lines)
     // const lineHightRadio = lines.length>=5
     let lineHightRadio = 1.2
     if (isOnlyOneP || lines.length > 1) {
       lineHightRadio = 1.3333
     }
-    // if ( lines.length * realFontSize > height ) {
-    //  lineHightRadio =  (height / realFontSize)
-    // } 
-    // // console.log('(00)-pptxtojson-[元素高度，实际字符高度]：', height, lines.length * realFontSize)
-    
+
+    // 行高规则-默认是字号的1.2倍
     let lineHight = realFontSize * 1.2
 
     for (const line of lines) {
-      // // console.log('(00)-genTextBody-:new-切行结果-lines:line', line)
-      // // console.log('(00)-genTextBody-:new-切行结果-lines:line.length', line.length)
-      const lineLen = line.length
-      const lineStart = currentPos
-      const lineEnd = currentPos + lineLen
+      // console.log('(00)-genTextBody-:new-切行结果-lines:line', line)
+      // console.log('(00)-genTextBody-:new-切行结果-lines:line.length', line.length)
+      // const lineLen = line.length
+      // const lineStart = currentPos
+      // const lineEnd = currentPos + lineLen
       // currentPos = lineEnd
-      lineEnd
-      // // console.log('(00)-genTextBody-:new-切行结果-line_in_lines:', line, lineLen)
-      // // console.log('(00)-genTextBody-:new-切行结果-line_in_lines:', line, lineLen)
-      lineStart
+
       // let charIndex = lineStart
       let curStyleText = charStyleList[0].styleText
       let curSpan = `<span style="${curStyleText}">` 
       for (let i = 0; i < line.length; i++) {
-        // // console.log('(00)-genTextBody-:new-切行结果-line_in_lines:[charIndex,char]', charIndex, line[i])
+
         const lineChar = line[i]
         lineChar
         const thisStyle = charStyleList[currentPos] 
         currentPos ++
-        // // console.log('(00)-genTextBody-:new-切行结果-lines:lineChar:【', lineChar, '】', 'index:【', i, '】', '当前样式', thisStyle)
         if (curStyleText === thisStyle.styleText) {
           curSpan += line[i]
         }
@@ -286,7 +256,6 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
           curStyleText = thisStyle.styleText
           curSpan += `</span><span style="${curStyleText}">` + line[i]
         }
-        // // console.log('(00)-genTextBody-:new-切行结果-line_in_lines:[char,当前样式]',  '【', line[i], '】', charStyleList[i])
         // charIndex += 1
       }
       curSpan += '</span>'
@@ -317,7 +286,6 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
       // lineSpans.push(`<span style=" white-space: pre; line-height:${lineHight}px ">` + curSpan + '</span><br>')
       // lineSpans.push(`<span style=" white-space: pre; line-height:1.5; ">` + curSpan + '</span><br>')
       lineSpans.push(`<span style=" white-space: pre;">` + curSpan + '</span><br>')
-      // // console.log('(00)-genTextBody-:new-切行结果-lines:curSpan:【', line, '】', 'curSpan:', curSpan)
 
     }
 
@@ -362,8 +330,6 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
       paragraphHtml = paragraphInfo.start + linesString + paragraphInfo.end
       // paragraphHtml = `<p style="line-height:${lineHight}px">` + linesString + '</p>'
       paragraphHtml = `<p style="line-height: ${lineHight * useImportLineHeight}px;">` + linesString + '</p>'
-      // // console.log('(00)-genTextBody-:new---切行结果----text--------------------:paragraphInfo:', paragraphInfo, paragraphHtml)
-      // // console.log('(00)-genTextBody-:new---切行结果----text--------------------:linesString:', linesString)
       // // console.log('(00)-genTextBody-:new---切行结果----text--------------------:lines:', lines)
       
     }
@@ -454,7 +420,6 @@ function getPreciseWidth(char, fontSize = '30px', fontFamily = 'Arial', fontWeig
   document.body.appendChild(span)
   const rect = span.getBoundingClientRect()
   document.body.removeChild(span)
-  // // console.log('(00)---全半角字符判断：charW-realCharW-realCharW1:--getPreciseWidth-rect.width', rect.width)
   return rect.width // 小数宽度！
 }
 
@@ -467,7 +432,6 @@ function isFullWidthChar(char) {
   // 匹配：中文汉字 + 全角符号(全角英文/数字/标点)
   const fullWidthReg = /[\u4E00-\u9FFF\uFF00-\uFFEF]/
   // 必须是单个字符才判断
-  // // console.log('(00)---全半角字符判断：', char, char.length === 1 && fullWidthReg.test(char))
   return char.length === 1 && fullWidthReg.test(char)
 }
 
@@ -512,8 +476,6 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList
       // const charW = isFullWidthChar(char) && (!HALF_WIDTH_CHARS.has(char)) ? fullCharWidth : halfCharWidth
       const charIsFullWidth = isFullWidthChar(char)
       const charW = charIsFullWidth || char === '。' ? fullCharWidth : halfCharWidth
-      // // console.log('(00)---全半角字符判断：charW', char, charIsFullWidth, charW, charW1)
-      // // console.log('(00)---全半角字符判断：HALF_WIDTH_CHARS.has(char)', char, HALF_WIDTH_CHARS.has(char), charW1)
 
       let useCharW = charW
       if (charStyleList && charStyleList.length >= index) {
@@ -528,23 +490,15 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList
 
         const realCharW = getCharWidth(char, fontSize, fontFamily, fontWeight) || charW
         const realCharW1 = getPreciseWidth(char, fontSize, fontFamily, fontWeight) || charW
-        // // console.log('(00)---全半角字符判断：当前字符样式：', 'fullText:', text, '__index【', index, '】--char:【', char, '】---', curStyle, charStyleList)
-        // // console.log('(00)---全半角字符判断：charW-realCharW-realCharW1:-[char, fontSize, fontFamily, fontWeight]', char, fontSize, fontFamily, fontWeight)
-        // // console.log('(00)---全半角字符判断：charW-realCharW-realCharW1:', char, charW, realCharW, realCharW1)
-        // console.log('(00)-wrapTextProfessional:-【char, curStyle】:', char, curStyle)
 
         realCharW
         useCharW = spicalChar.has(char) ? fullCharWidth : realCharW1
       }
-      // // console.log('(00)---全半角字符判断：当前字符样式：', char, charStyleList)
-
 
       // isFullWidthChar(char) && (!HALF_WIDTH_CHARS.has(char)) ? fullCharWidth : halfCharWidth
       HALF_WIDTH_CHARS.has(char)
 
       const useMaxLineWidthPx = maxLineWidthPx
-      // // console.log('(00)-wrapTextProfessional:-【char, useCharW】:', char, useCharW)
-      // console.log('(00)-wrapTextProfessional:-【useCharW, currentWidth, useMaxLineWidthPx】:【', char, '】【', char.charCodeAt(0), '】-', useCharW, '-', fullCharWidth, '-', currentWidth + useCharW, '-', useMaxLineWidthPx)
       // 超宽判断
       const diffW = currentWidth + useCharW - useMaxLineWidthPx
       // const half = diffW / useCharW > 0.15 
@@ -557,9 +511,9 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList
           currentLine += char
           currentWidth += useCharW
           currentWidthList.push(useCharW)
-          const endWithLeftSymbol = checkLastIsLeftSymbol(currentLine)
+          // const endWithLeftSymbol = checkLastIsLeftSymbol(currentLine)
           const endWithLeftSymbol1 = checkLastLeftSymbol(currentLine)
-          console.log('(00)-wrapTextProfessional:-【endWithLeftSymbol】:', endWithLeftSymbol, endWithLeftSymbol1, currentLine)
+          // console.log('(00)-wrapTextProfessional:-【endWithLeftSymbol】:', endWithLeftSymbol, endWithLeftSymbol1, currentLine)
           let newStr = ''
           let newStrWidth = 0
           if (endWithLeftSymbol1.match) {
@@ -574,9 +528,9 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList
           currentWidth = newStrWidth
         }
         else {
-          const endWithLeftSymbol = checkLastIsLeftSymbol(currentLine)
+          // const endWithLeftSymbol = checkLastIsLeftSymbol(currentLine)
           const endWithLeftSymbol1 = checkLastLeftSymbol(currentLine)
-          console.log('(00)-wrapTextProfessional:-【endWithLeftSymbol】:', endWithLeftSymbol, endWithLeftSymbol1, currentLine)
+          // console.log('(00)-wrapTextProfessional:-【endWithLeftSymbol】:', endWithLeftSymbol, endWithLeftSymbol1, currentLine)
           let newStr = ''
           let newStrWidth = 0
           if (endWithLeftSymbol1.match) {
@@ -668,7 +622,6 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList
     }
   }
 
-  console.log('(00)-isRemainingALLEmpty-[char]:--text:', text)
   let isEmptyLine = true
   for (const lineChar of currentLine) {
     if (lineChar !== ' ') {
@@ -686,9 +639,6 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList
     }
     // lines.push(currentLine)
   }
-
-  console.log('(00)-isRemainingALLEmpty-[char]:--lines:', lines)
-  console.log('(00)-wrapTextProfessional:-[lines]:', lines)
 
   return lines
 }
@@ -716,7 +666,6 @@ function removeRightChars(str, n) {
 
   const removedChars = str.slice(-n)
   const newStr = str.slice(0, -n)
-  console.log('(00)-removeRightChars-[newStr, removedChars]:', newStr, '---', removedChars, '---', n)
   return {
     newStr,
     removedChars
@@ -726,20 +675,20 @@ function removeRightChars(str, n) {
  * 判断字符串【最后一个非空格字符】是不是【各种左符号】
  * 包含：(  [  {  《  “  ‘
  */
-function checkLastIsLeftSymbol(str) {
-  // 1. 去掉末尾所有空格
-  const trimmed = str.trimEnd()
+// function checkLastIsLeftSymbol(str) {
+//   // 1. 去掉末尾所有空格
+//   const trimmed = str.trimEnd()
 
-  // 2. 空字符串直接返回 false
-  if (trimmed.length === 0) return false
+//   // 2. 空字符串直接返回 false
+//   if (trimmed.length === 0) return false
 
-  // 3. 取最后一个字符
-  const last = trimmed.slice(-1)
+//   // 3. 取最后一个字符
+//   const last = trimmed.slice(-1)
 
-  // 4. 判断是不是【左符号】
-  const leftSymbols = ['(', '（', '[', '{', '《', '“', '‘', '《', '“', '‘', '〈', '『', '【']
-  return leftSymbols.includes(last)
-}
+//   // 4. 判断是不是【左符号】
+//   const leftSymbols = ['(', '（', '[', '{', '《', '“', '‘', '《', '“', '‘', '〈', '『', '【']
+//   return leftSymbols.includes(last)
+// }
 
 function checkLastLeftSymbol(str) {
   const len = str.length
@@ -779,7 +728,6 @@ function isRemainingALLEmpty(curIndex, charList ) {
   for (let i = curIndex;i < charList.length;i++) {
     const char = charList[i]
     if (char !== ' ') {
-      console.log('(00)-isRemainingALLEmpty-[char]:', char, charList)
       remainInfo.allInOneline = true
       return remainInfo
     } 
@@ -1005,7 +953,7 @@ function isRemainingALLEmpty(curIndex, charList ) {
 //   // }
 //   return text
 // }
-export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height) {
+export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, useNewDeal) {
   if (!textBodyNode) return ''
   let text = ''
 
@@ -1055,7 +1003,6 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
     let styleText = `text-align: ${align};`
     let lineHeight = 1
     if (spacing) {
-      // // console.log('(00)=-=====>spacing.lineSpacing:', spacing.lineSpacing)
       if (spacing.lineSpacing) {
         styleText += `line-height: ${spacing.lineSpacing};`
         lineHeight = spacing.lineSpacing
@@ -1111,63 +1058,65 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
       let defaultLineHight = false
       let defaultLineHight11 = false
       const lineHight11 = rNode.length > 1
+      if (useNewDeal) {
 
-      let newDeal = false
-      if (!newDeal) {
-        text = ''
-        const getStyleInfo = {
-          pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj
-        }
-        const cutLineResultNew = parsePPTTextToLinesNew(spNode, width)
-        cutLineResultNew
-        const cutLineResult = parsePPTTextToLines(spNode, width, height, lineHeight, getStyleInfo, paragraphInfo)
-        // const fontSize = getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles, textBodyNode, pNode)
-        // console.log('(00)-genTextBody-:new---切行结果----cutLineResultNew:', cutLineResultNew)
-        // console.log('(00)-genTextBody-:new---切行结果----cutLineResult:', cutLineResult)
-        for (let i = 0; i < cutLineResult.length;i++ ) {
+        let newDeal = false
+        if (!newDeal) {
+          text = ''
+          const getStyleInfo = {
+            pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj
+          }
+          const cutLineResultNew = parsePPTTextToLinesNew(spNode, width)
+          cutLineResultNew
+          const cutLineResult = parsePPTTextToLines(spNode, width, height, lineHeight, getStyleInfo, paragraphInfo)
+          // const fontSize = getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles, textBodyNode, pNode)
+          // console.log('(00)-genTextBody-:new---切行结果----cutLineResultNew:', cutLineResultNew)
+          // console.log('(00)-genTextBody-:new---切行结果----cutLineResult:', cutLineResult)
+          for (let i = 0; i < cutLineResult.length;i++ ) {
           // // console.log('(00)-genTextBody-:new---切行结果----cutLineResult:.paragraphHtml', cutLineResult[i].paragraphHtml)
           // console.log('(00)-genTextBody-:new---切行结果----cutLineResult:.lines', i, '-', cutLineResult[i].lines)
-          text += cutLineResult[i].paragraphHtml
-          newDeal = true
+            text += cutLineResult[i].paragraphHtml
+            newDeal = true
+          }
         }
-      }
 
-      if (newDeal) {
+        if (newDeal) {
         // console.log('(00)-genTextBody-:new---切行结果----text:::', text)
         // return text
-        const abs = false
-        if (abs) {
-          text = replaceMultiNbspBlocks(text)
-          text = addStyleToSpans(text, ' line-height: inherit; vertical-align: middle;')
-        }
-        else {
-          text = replaceNbspByLimit(text, 3)
-        }
-        if (!abs) {
-          text = addStyleToTag(text, 'p', ' margin: 0; padding: 0;')
-          const result = checkSpanLastCharIsTonePinyin(text)
+          const abs = false
           if (abs) {
-            // // console.log('(00)---checkSpanLastCharIsTonePinyinresult:', result)
-            result
+            text = replaceMultiNbspBlocks(text)
+            text = addStyleToSpans(text, ' line-height: inherit; vertical-align: middle;')
           }
-          // if (result && result.length === 1 && result[0].isTonePinyin) {
-          //   text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; line-break: strict; word-break: keep-all; overflow-wrap: break-word; white-space: nowrap')
-          // }
-          // else {
-          //   text = addStyleToTag(text, 'span', 'line-break: strict; overflow-wrap: break-word; white-space: pre-wrap')
-          // }
+          else {
+            text = replaceNbspByLimit(text, 3)
+          }
+          if (!abs) {
+            // text = addStyleToTag(text, 'p', ' margin: 0; padding: 0;')
+            // const result = checkSpanLastCharIsTonePinyin(text)
+            // if (abs) {
+            // // // console.log('(00)---checkSpanLastCharIsTonePinyinresult:', result)
+            //   result
+            // }
+            // if (result && result.length === 1 && result[0].isTonePinyin) {
+            //   text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; line-break: strict; word-break: keep-all; overflow-wrap: break-word; white-space: nowrap')
+            // }
+            // else {
+            //   text = addStyleToTag(text, 'span', 'line-break: strict; overflow-wrap: break-word; white-space: pre-wrap')
+            // }
 
-        }
+          }
 
-        if (text.includes('&nbsp;')) {
+          if (text.includes('&nbsp;')) {
           // console.log('(00)-------text:有&nbsp:', text)
-          text = text.replace('&nbsp;', ' ')
+            text = text.replace('&nbsp;', ' ')
+          }
+          // console.log('(00)-genTextBody-:new---切行结果----text:::返回值------:', text)
+          return text
         }
-        // console.log('(00)-genTextBody-:new---切行结果----text:::返回值------:', text)
-        return text
       }
       
-      else if (!newDeal) {
+      else {
         //    
         for (const rNodeItem of rNode) {
           // console.log('(00)-genTextBody-:new---切行结果----rNodeItem', rNodeItem)
@@ -1217,11 +1166,9 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
       // if (defaultLineHight || !(spacing && spacing.lineSpacing)) {
       if (defaultLineHight) {
         text = addStyleToTag(text, 'span', 'line-height: 1.15')
-        // console.log('(00)-getSpanStyleInfo----aRpr:-----accumulatedText-------------------------------------------------:', accumulatedText)
       }
       if (defaultLineHight11) {
         text = addStyleToTag(text, 'span', 'line-height: 1.1')
-        // console.log('(00)-getSpanStyleInfo----aRpr:-----accumulatedText-------------------------------------------------:', accumulatedText)
       }
       // else if (lineHight11) {
       //   text = addStyleToTag(text, 'span', 'line-height: 1.1')
@@ -1462,30 +1409,19 @@ export function genSpanElement(node, pNode, textBodyNode, pFontStyle, slideLayou
 export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
   const lstStyle = textBodyNode['a:lstStyle']
   const slideMasterTextStyles = warpObj['slideMasterTextStyles']
-  // // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText-text:', '1111111')
-  // // console.log('(00)-genTextBody-getSpanStyleInfo--lstStyle:', lstStyle)
   let lvl = 1
   const pPrNode = pNode['a:pPr']
   const lvlNode = getTextByPathList(pPrNode, ['attrs', 'lvl'])
   if (lvlNode !== undefined) lvl = parseInt(lvlNode) + 1
 
   let text = node['a:t']
-  // // console.log('(00)-pptxtojson-getSpanStyleInfo---text:', text)
-  // // console.log('(00)-pptxtojson-genSpanEl---node:', node)
-  // // console.log('(00)-pptxtojson-genSpanEl---text:', text)
   if (typeof text !== 'string') text = getTextByPathList(node, ['a:fld', 'a:t'])
   // if (typeof text !== 'string') text = '&nbsp;'
   if (typeof text !== 'string') text = ' '
-  // // // console.log('(00)-pptxtojson-getSpanStyleInfo---text:.includes(/\s/g):', text.includes(/\s/g))
-  if (text.includes('\t')) {
-    // // console.log('(00)-pptxtojson-getSpanStyleInfo---text:.includes(/\s/g):', '有回车')
-  }
-  if (text.includes('\s')) {
-    // // console.log('(00)-pptxtojson-getSpanStyleInfo---text:.includes(/\s/g):', '有空格')
-  }
 
   let styleText = ''
   const fontColor = getFontColor(node, pNode, lstStyle, pFontStyle, lvl, warpObj)
+  console.log('(00)-pptxtojson-getSpanStyleInfo-[fontColor]:1', node)
   const fontSize = getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles, textBodyNode, pNode)
   // console.log('(00)-genTextBody-:new-----fontSize:)', fontSize)
   const fontType = getFontType(node, type, warpObj, slideLayoutSpNode, slideMasterSpNode, slideMasterTextStyles)
@@ -1496,14 +1432,7 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   const fontSpace = getFontSpace(node)
   const shadow = getFontShadow(node, warpObj)
   const subscript = getFontSubscript(node)
-
-  if (fontDecoration) {
-    // console.log('(00)-genTextBody-:rNode:--getSpanStyleInfo[fontDecoration]', fontDecoration)
-  }
-
-  if (fontDecorationLine) {
-    // console.log('(00)-genTextBody-:rNode:--getSpanStyleInfo[fontDecorationLine]', fontDecorationLine)
-  }
+  console.log('(00)-pptxtojson-getSpanStyleInfo-[fontColor]:--fontType', fontType)
 
   if (fontColor) {
     if (typeof fontColor === 'string') styleText += `color: ${fontColor};`
@@ -1528,6 +1457,7 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   const hasLink = linkID && warpObj['slideResObj'][linkID]
 
   const aRpr = getTextByPathList(node, ['a:rPr', 'attrs'])
+  console.log('(00)-pptxtojson-getSpanStyleInfo-[fontColor]:', fontColor)
   let lineHight115
   let lineHight11
   if (aRpr && aRpr.b) {
@@ -1536,13 +1466,6 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
     lineHight11 = lineHight115 || aRpr.sz === '2800' && aRpr.b === '1' && text.length > 20
     // lineHight115 = aRpr.b === '1'
     // lineHight115 = aRpr.sz === '2800' 
-    // if (lineHight115) {
-    // // console.log('(00)-getSpanStyleInfo----aRpr:', aRpr.sz, '--lineHight115:', lineHight115, '---text:', text)
-    // }
-    // if (text.length > 10) {
-    //   // console.log('(00)-getSpanStyleInfo----aRpr:------>10:', aRpr.sz, '--lineHight115:', lineHight115, '---text:', text)
-    // }
-    // // console.log('(00)-getSpanStyleInfo----aRpr:------>10:', aRpr.sz, '--lineHight115:', lineHight115, '---text:', text)
   }
   const styleObj = {
     fontSize: fontSize.replace('pt', 'px'),

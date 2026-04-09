@@ -265,6 +265,21 @@ export function getBgGradientFill(bgPr, phClr, slideMasterContent, warpObj) {
   return null
 }
 
+function isColor(color) {
+  if (typeof color !== 'string' || !color) return false
+  
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+  
+  // 先设为无效值
+  ctx.fillStyle = 'invalid'
+  // 再尝试设置颜色
+  ctx.fillStyle = color
+  
+  // 如果颜色有效，值会变化
+  return ctx.fillStyle !== 'invalid'
+}
+
 export async function getSlideBackgroundFill(warpObj) {
   const slideContent = warpObj['slideContent']
   const slideLayoutContent = warpObj['slideLayoutContent']
@@ -422,7 +437,15 @@ export async function getSlideBackgroundFill(warpObj) {
       const phClr = getSolidFill(bgRef, clrMapOvr, undefined, warpObj)
       const idx = Number(bgRef['attrs']['idx'])
   
-      if (idx > 1000) {
+      let got = false
+      if (typeof phClr === 'string' && phClr.includes('#')) { 
+        if (isColor(phClr)) {
+          backgroundType = 'color'
+          background = phClr
+          got = true
+        }
+      }
+      if (idx > 1000 && !got) {
         const trueIdx = idx - 1000
         const bgFillLst = warpObj['themeContent']['a:theme']['a:themeElements']['a:fmtScheme']['a:bgFillStyleLst']
         const sortblAry = []
@@ -750,6 +773,8 @@ export function getSolidFill(solidFill, clrMap, phClr, warpObj) {
     if (sysClr) color = sysClr
   }
 
+  console.log('(00)-pptxtojson-getSpanStyleInfo-[fontColor]:-getFontColor-[filTyp]:-getSolidFill-[color]', color)
+  const originColor = color
   let isAlpha = false
   const alpha = parseInt(getTextByPathList(clrNode, ['a:alpha', 'attrs', 'val'])) / 100000
   if (!isNaN(alpha)) {
@@ -782,6 +807,11 @@ export function getSolidFill(solidFill, clrMap, phClr, warpObj) {
   const tint = parseInt(getTextByPathList(clrNode, ['a:tint', 'attrs', 'val'])) / 100000
   if (!isNaN(tint)) {
     color = applyTint(color, tint, isAlpha)
+  }
+  // satMod tint
+  console.log('(00)-pptxtojson-getSpanStyleInfo-[fontColor]:-getFontColor-[filTyp]:-getSolidFill-[alpha,hueMod,lumMod,lumOff,satMod,shade,tint]', alpha, hueMod, lumMod, lumOff, satMod, shade, tint)
+  if (originColor && tint && !isAlpha) {
+    color = originColor
   }
 
   if (color && color.indexOf('#') === -1) color = '#' + color

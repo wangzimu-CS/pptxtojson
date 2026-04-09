@@ -49,6 +49,22 @@ export function getFontType(node, type, warpObj, slideLayoutSpNode, slideMasterS
           case '+mj-lt': 
             return getTextByPathList(fontSchemeNode, ['a:majorFont', 'a:latin', 'attrs', 'typeface'])
           case '+mn-lt': 
+            const targetText = getTextByPathList(node, ['a:t'])
+            if (typeof targetText === 'string' && targetText.length === 1) {
+              const charScript = checkStringScripts(targetText)
+              const targetTextScript = charScript && charScript.length >= 1 && charScript[0] ? charScript[0].script || '' : ''
+              const targetTextTypefaceList = getTextByPathList(fontSchemeNode, ['a:minorFont', 'a:font'])
+
+              const item = targetTextTypefaceList && targetTextTypefaceList.length
+                ? targetTextTypefaceList.find(obj => obj && obj.attrs && obj.attrs.script === targetTextScript)
+                : null
+
+              const targetTextTypeface = item && item.attrs && item.attrs.typeface
+                ? item.attrs.typeface
+                : getTextByPathList(fontSchemeNode, ['a:minorFont', 'a:latin', 'attrs', 'typeface']) || ''
+
+              return targetTextTypeface
+            }
             return getTextByPathList(fontSchemeNode, ['a:minorFont', 'a:latin', 'attrs', 'typeface'])
           case '+mj-ea': 
             return getTextByPathList(fontSchemeNode, ['a:majorFont', 'a:ea', 'attrs', 'typeface'])
@@ -69,6 +85,87 @@ export function getFontType(node, type, warpObj, slideLayoutSpNode, slideMasterS
   }
 
   return typeface || ''
+}
+
+/**
+ * 判断单个字符属于哪种文字脚本（Script）
+ * @param {string} char - 单个字符
+ * @returns {string|null} 脚本代码（如 Hans/Hant/Jpan...），无法识别返回 null
+ */
+function getCharScript(char) {
+  if (!char || char.length !== 1) return null
+  // ==================== 中文标点（必须单独判断）====================
+  const isChinesePunctuation = /[？！。，；：‘’“”【】（）——…]/u.test(char)
+  if (isChinesePunctuation) return 'Hans'
+
+  const regexMap = {
+    Hans: /\p{Script=Han}/u,
+    Jpan: /\p{Script=Hiragana}|\p{Script=Katakana}/u,
+    Hang: /\p{Script=Hangul}/u,
+    Arab: /\p{Script=Arabic}/u,
+    Hebr: /\p{Script=Hebrew}/u,
+    Thai: /\p{Script=Thai}/u,
+    Ethi: /\p{Script=Ethiopic}/u,
+    Beng: /\p{Script=Bengali}/u,
+    Gujr: /\p{Script=Gujarati}/u,
+    Khmr: /\p{Script=Khmer}/u,
+    Knda: /\p{Script=Kannada}/u,
+    Guru: /\p{Script=Gurmukhi}/u,
+    Cans: /\p{Script=Canadian_Aboriginal}/u,
+    Cher: /\p{Script=Cherokee}/u,
+    Yiii: /\p{Script=Yi}/u,
+    Tibt: /\p{Script=Tibetan}/u,
+    Thaa: /\p{Script=Thaana}/u,
+    Deva: /\p{Script=Devanagari}/u,
+    Telu: /\p{Script=Telugu}/u,
+    Taml: /\p{Script=Tamil}/u,
+    Syrc: /\p{Script=Syriac}/u,
+    Orya: /\p{Script=Oriya}/u,
+    Mlym: /\p{Script=Malayalam}/u,
+    Laoo: /\p{Script=Lao}/u,
+    Sinh: /\p{Script=Sinhala}/u,
+    Mong: /\p{Script=Mongolian}/u,
+    Viet: /[àáạảãâầấậẩẫêềếệểễòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/iu,
+    Uigh: /\p{Script=Arabic}/u,
+  }
+
+  // 越南文
+  if (regexMap.Viet.test(char)) return 'Viet'
+  // 韩文
+  if (regexMap.Hang.test(char)) return 'Hang'
+  // 日文
+  if (regexMap.Jpan.test(char)) return 'Jpan'
+  // 汉字
+  if (regexMap.Hans.test(char)) {
+    try {
+      const seg = new Intl.Segmenter('zh-TW', { granularity: 'grapheme' }).segment(char).next().value
+      return seg.isTraditional ? 'Hant' : 'Hans'
+    }
+    catch (e) {
+      return 'Hans'
+    }
+  }
+  // 维吾尔文
+  if (regexMap.Uigh.test(char)) return 'Uigh'
+  // 其他语言
+  for (const [script, regex] of Object.entries(regexMap)) {
+    if (['Hans', 'Hant', 'Jpan', 'Hang', 'Viet', 'Uigh'].includes(script)) continue
+    if (regex.test(char)) return script
+  }
+
+  return null
+}
+
+/**
+ * 批量判断字符串中每个字符的脚本类型
+ * @param {string} str - 输入字符串
+ * @returns {Array<{char: string, script: string|null}>}
+ */
+function checkStringScripts(str) {
+  return Array.from(str).map(char => ({
+    char,
+    script: getCharScript(char)
+  }))
 }
 
 export function getFontColor(node, pNode, lstStyle, pFontStyle, lvl, warpObj) {

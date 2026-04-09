@@ -192,7 +192,6 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
   const slideLayoutContent = await readXmlFile(zip, layoutFilename)
   const slideLayoutTables = await indexNodes(slideLayoutContent)
   const slideLayoutResFilename = layoutFilename.replace('slideLayouts/slideLayout', 'slideLayouts/_rels/slideLayout') + '.rels'
-  // console.log('(00)-pptxtojson-getLayoutElements--nodesSldLayout:--slideLayoutResFilename:', slideLayoutResFilename)
   const slideLayoutResContent = await readXmlFile(zip, slideLayoutResFilename)
   relationshipArray = slideLayoutResContent['Relationships']['Relationship']
   if (relationshipArray.constructor !== Array) relationshipArray = [relationshipArray]
@@ -303,13 +302,9 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
   const slideContent = await readXmlFile(zip, sldFileName)
   const slide1Xml = await zip.file(sldFileName).async('text')
   const spNodes = parseXMLData(slide1Xml, 'spTree')
-  // console.log('(00)-pptxtojson-processSingleSlide:--spNodes:', spNodes)
-  // const nodes = slideContent['p:sld']['p:cSld']['p:spTree']
   let nodes = slideContent['p:sld']['p:cSld']['p:spTree']
-  // console.log('(00)-pptxtojson-processSingleSlide:--nodes:', nodes)
   if (spNodes.length > 0) {
     nodes = getXMLNodeData(spNodes[0], ['p:spTree'])
-    // console.log('(00)-pptxtojson-processSingleSlide:--nodes--new:', nodes)
   }
   const warpObj = {
     zip,
@@ -331,8 +326,6 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
     defaultTextStyle,
   }
   const layoutElements = await getLayoutElements(warpObj)
-  // console.log('(00)-pptxtojson-processSingleSlide--slideLayoutContent:', slideLayoutContent)
-  // console.log('(00)-pptxtojson-processSingleSlide--layoutElements:', layoutElements)
   const fill = await getSlideBackgroundFill(warpObj)
 
   const elements = []
@@ -340,9 +333,6 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
     if (nodes[nodeKey].constructor !== Array) nodes[nodeKey] = [nodes[nodeKey]]
     for (const node of nodes[nodeKey]) {
       const ret = await processNodesInSlide(nodeKey, node, warpObj, 'slide')
-      // if (ret.type === 'text') {
-      // console.log('(00)text_element----ret:--pptxtojson_ret:', ret)
-      // }
       if (ret) elements.push(ret)
     }
   }
@@ -468,7 +458,6 @@ function getNote(noteContent) {
       }
       const lvlNode = getTextByPathList(pPr, ['attrs', 'lvl'])
       const listLevel = lvlNode !== undefined ? parseInt(lvlNode) : 0
-      // console.log('(00)-pptxtojson-getNote---listType:', listType)
       if (listType) {
         while (listTypes.length > listLevel + 1) {
           text += `</${listTypes.pop()}>`
@@ -519,18 +508,11 @@ async function getLayoutElements(warpObj) {
   // 获取是否阻断集成的信息
   const isPreserve = getTextByPathList(slideLayoutContent, ['p:sldLayout', 'attrs', 'preserve']) === '1'
   // 母版
-  // 暂时取消nodesSldMaster信息的获取
-  // const nodesSldLayout = getTextByPathList(slideLayoutContent, ['p:sldLayout', 'p:cSld', 'p:spTree', '1212'])
-  // const nodesSldMaster = getTextByPathList(slideMasterContent, ['p:sldMaster', 'p:cSld', 'p:spTree', '123'])
-  // console.log('(00)-pptxtojson-getLayoutElements--nodesSldLayout:', isPreserve, nodesSldLayout)
-  // // console.log('(00)-pptxtojson-getLayoutElements--nodesSldMaster:', nodesSldMaster)
-  // // console.log('(00)-pptxtojson-getLayoutElements--nodesSldMaster&&nodesSldLayout:', nodesSldMaster, '----------------------------', nodesSldLayout)
   const sldLayOutElementList = []
   const sldMasterElementList = []
   const showMasterSp = getTextByPathList(slideLayoutContent, ['p:sldLayout', 'attrs', 'showMasterSp'])
   if (nodesSldLayout) {
     for (const nodeKey in nodesSldLayout) {
-      // console.log('(00)-pptxtojson-getLayoutElements--nodeKey:', nodeKey)
       if (nodesSldLayout[nodeKey].constructor === Array) {
         for (let i = 0; i < nodesSldLayout[nodeKey].length; i++) {
           const ph = getTextByPathList(nodesSldLayout[nodeKey][i], ['p:nvSpPr', 'p:nvPr', 'p:ph'])
@@ -573,7 +555,6 @@ async function getLayoutElements(warpObj) {
   if (abs) {
     findSameSubObjects(sldLayOutElementList, sldMasterElementList)
   }
-  // console.log('(00)-pptxtojson-getLayoutElements--sldLayOutElementList:', sldLayOutElementList, '------------------------sldMasterElementList:', sldMasterElementList)
   for (let i = 0;i < sldLayOutElementList.length;i++) {
     const target = sldLayOutElementList[i]
     if (!isPreserve) {
@@ -946,7 +927,6 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
 
   const { top, left } = getPosition(slideXfrmNode, slideLayoutXfrmNode, slideMasterXfrmNode)
   const { width, height } = getSize(slideXfrmNode, slideLayoutXfrmNode, slideMasterXfrmNode)
-  // console.log('(00)-genTextBody-:new---元素宽高-width, height：', width, height)
   const isFlipV = getTextByPathList(slideXfrmNode, ['attrs', 'flipV']) === '1'
   const isFlipH = getTextByPathList(slideXfrmNode, ['attrs', 'flipH']) === '1'
 
@@ -961,11 +941,9 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
   else txtRotate = rotate
 
   let content = ''
-  // console.log('(00)-genTextBody-:textBodyNode:--node:', node)
-  if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height)
+  if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, true)
   const { borderColor, borderWidth, borderType, strokeDasharray } = getBorder(node, type, warpObj)
   const fill = await getShapeFill(node, warpObj, source, groupHierarchy)
-  // console.log('(00)-pptxtojson-genShape---content:', content)
 
   let shadow
   const outerShdwNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:outerShdw'])
@@ -983,12 +961,6 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
   const isVertical = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert']) === 'eaVert'
   const autoFit = getTextAutoFit(node, slideLayoutSpNode, slideMasterSpNode)
 
-  if (content.includes('拼音')) {
-    // width += 3
-    // height = height + 0
-    // console.log('(00)---pptxtojson-genShape---content:', content)
-  }
-  // console.log('(00)genShape----data[left, top, width, height]:', left, top, width, height)
   const data = {
     left,
     top,
