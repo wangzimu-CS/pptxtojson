@@ -145,7 +145,7 @@ function getCharStyleList(fullText, runList) {
   return charStyleList
 }
 
-function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyleUseInfo, paragraphInfo) {
+function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyleUseInfo, paragraphInfo, styleObj) {
   if (!shapeData || typeof shapeData !== 'object') return []
 
   const spPr = shapeData['p:spPr']
@@ -210,7 +210,7 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
     }
 
     const charStyleList = getCharStyleList(fullText, runList)
-
+    // console.log('(00)-pptxtojson-debug-[charStyleList]:', charStyleList)
     const charWidth = realFontSize
     let lines
     if (fullText.length > 5 && fullText.includes(' ')) {
@@ -243,6 +243,7 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
       // let charIndex = lineStart
       let curStyleText = charStyleList[0].styleText
       let curSpan = `<span style="${curStyleText}">` 
+      let previousStyle
       for (let i = 0; i < line.length; i++) {
 
         const lineChar = line[i]
@@ -253,8 +254,16 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
           curSpan += line[i]
         }
         else {
+          if (line[i] === '）') {
+            // sfas
+            console.log('(00)-pptxtojson-debug-[previousStyle]:', previousStyle)
+
+          }
           curStyleText = thisStyle.styleText
+          previousStyle = charStyleList[currentPos - 1] 
           curSpan += `</span><span style="${curStyleText}">` + line[i]
+          // console.log('(00)-pptxtojson-debug-[line[i],thisStyle,curStyleText]:', line[i], thisStyle, curStyleText)
+
         }
         // charIndex += 1
       }
@@ -326,14 +335,14 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
     const useImportLineHeight = lineHeightImport + (lineHeightImport - 1) * 0.5
     const linesString = ` <span style=" white-space: pre-wrap ">` + lineSpans.join('') + '</span>'
     let paragraphHtml = '<p style="">' + linesString + '</p>'
+    const useStyleText = styleObj.styleText || ''
     if (paragraphInfo && paragraphInfo.start && paragraphInfo.end) {
       paragraphHtml = paragraphInfo.start + linesString + paragraphInfo.end
       // paragraphHtml = `<p style="line-height:${lineHight}px">` + linesString + '</p>'
-      paragraphHtml = `<p style="line-height: ${lineHight * useImportLineHeight}px;">` + linesString + '</p>'
+      paragraphHtml = `<p style="${useStyleText} line-height: ${lineHight * useImportLineHeight}px;">` + linesString + '</p>'
       // // console.log('(00)-genTextBody-:new---切行结果----text--------------------:lines:', lines)
       
     }
-
     result.push({
       text: fullText,
       lines: lines,
@@ -1002,13 +1011,26 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
     const spacing = getParagraphSpacing(pNode)
     let styleText = `text-align: ${align};`
     let lineHeight = 1
+    const styleObj = {
+      textAlign: align,
+      styleText: styleText
+    }
     if (spacing) {
       if (spacing.lineSpacing) {
         styleText += `line-height: ${spacing.lineSpacing};`
         lineHeight = spacing.lineSpacing
+        styleObj.lineHeight = lineHeight
       }
-      if (spacing.spaceBefore) styleText += `margin-top: ${spacing.spaceBefore};`
-      if (spacing.spaceAfter) styleText += `margin-bottom: ${spacing.spaceAfter};`
+      if (spacing.spaceBefore) {
+        styleText += `margin-top: ${spacing.spaceBefore};`
+        styleObj.marginTop = spacing.spaceBefore
+        styleObj.styleText += `margin-top: ${spacing.spaceBefore};`
+      }
+      if (spacing.spaceAfter) {
+        styleText += `margin-bottom: ${spacing.spaceAfter};`
+        styleObj.marginBottom = spacing.spaceAfter
+        styleObj.styleText += `margin-bottom: ${spacing.spaceAfter};`
+      }
     }
     else {
       // styleText += `line-height: 1.2;`
@@ -1068,7 +1090,7 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
           }
           const cutLineResultNew = parsePPTTextToLinesNew(spNode, width)
           cutLineResultNew
-          const cutLineResult = parsePPTTextToLines(spNode, width, height, lineHeight, getStyleInfo, paragraphInfo)
+          const cutLineResult = parsePPTTextToLines(spNode, width, height, lineHeight, getStyleInfo, paragraphInfo, styleObj)
           // const fontSize = getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles, textBodyNode, pNode)
           // console.log('(00)-genTextBody-:new---切行结果----cutLineResultNew:', cutLineResultNew)
           // console.log('(00)-genTextBody-:new---切行结果----cutLineResult:', cutLineResult)
@@ -1478,6 +1500,8 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
     subscript,
     shadow,
   }
+  console.log('(00)-pptxtojson-debug-[text,styleObj]:', text, styleObj)
+
   return {
     styleText,
     styleObj,

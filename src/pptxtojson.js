@@ -301,8 +301,17 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
 
   const slideContent = await readXmlFile(zip, sldFileName)
   const slide1Xml = await zip.file(sldFileName).async('text')
-  const spNodes = parseXMLData(slide1Xml, 'spTree')
-  let nodes = slideContent['p:sld']['p:cSld']['p:spTree']
+  let spNodes
+  if (slide1Xml) {
+    spNodes = parseXMLData(slide1Xml, 'spTree')
+  }
+  // let nodes = slideContent['p:sld']['p:cSld']['p:spTree']
+  console.log('(00)-pptxtojson---nodes:--slideContent', slideContent)
+  let nodes 
+  if (slideContent) {
+    console.log('(00)-debug--slideContent', slideContent)
+    nodes = getTextByPathList(slideContent, ['p:sld', 'p:cSld', 'p:spTree'])
+  }
   if (spNodes.length > 0) {
     nodes = getXMLNodeData(spNodes[0], ['p:spTree'])
   }
@@ -353,15 +362,21 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
 }
 
 function parseXMLData(slideXml, key) {
+  if (!slideXml) {
+    return
+  } 
   const ns = {
     p: 'http://schemas.openxmlformats.org/presentationml/2006/main',
     a: 'http://schemas.openxmlformats.org/drawingml/2006/main' 
   }
   const parser = new DOMParser()
   const xmlDoc = parser.parseFromString(slideXml, 'text/xml')
+  if (!xmlDoc) return
   // 获取所有动画节点
   // const ctns = xmlDoc.getElementsByTagNameNS(ns.p, 'cTn')
+  console.log('(00)-debug-[xmlDoc,key]:', xmlDoc, key)
   const spList = xmlDoc.getElementsByTagNameNS(ns.p, key)
+  console.log('(00)-debug-[xmlDoc,key,spList]:', xmlDoc, key, spList)
   // const animNodes = Array.from(ctns).filter((v) => v.getAttribute('presetClass'))
   return spList
 }
@@ -941,9 +956,15 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
   else txtRotate = rotate
 
   let content = ''
-  if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, true)
+  // if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, true)
   const { borderColor, borderWidth, borderType, strokeDasharray } = getBorder(node, type, warpObj)
   const fill = await getShapeFill(node, warpObj, source, groupHierarchy)
+
+  const isShape = (custShapType && type !== 'diagram') 
+                  || (shapType && (type === 'obj' || !type || shapType !== 'rect')) 
+                  || (shapType && (fill || borderWidth))
+                  // || (shapType && !isHasValidText && (fill || borderWidth))
+  if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, !isShape)
 
   let shadow
   const outerShdwNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:outerShdw'])
