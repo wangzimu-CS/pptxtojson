@@ -306,10 +306,8 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
     spNodes = parseXMLData(slide1Xml, 'spTree')
   }
   // let nodes = slideContent['p:sld']['p:cSld']['p:spTree']
-  console.log('(00)-pptxtojson---nodes:--slideContent', slideContent)
   let nodes 
   if (slideContent) {
-    console.log('(00)-debug--slideContent', slideContent)
     nodes = getTextByPathList(slideContent, ['p:sld', 'p:cSld', 'p:spTree'])
   }
   if (spNodes.length > 0) {
@@ -374,9 +372,7 @@ function parseXMLData(slideXml, key) {
   if (!xmlDoc) return
   // 获取所有动画节点
   // const ctns = xmlDoc.getElementsByTagNameNS(ns.p, 'cTn')
-  console.log('(00)-debug-[xmlDoc,key]:', xmlDoc, key)
   const spList = xmlDoc.getElementsByTagNameNS(ns.p, key)
-  console.log('(00)-debug-[xmlDoc,key,spList]:', xmlDoc, key, spList)
   // const animNodes = Array.from(ctns).filter((v) => v.getAttribute('presetClass'))
   return spList
 }
@@ -958,6 +954,7 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
   let content = ''
   // if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, true)
   const { borderColor, borderWidth, borderType, strokeDasharray } = getBorder(node, type, warpObj)
+  console.log('(00)-pptxtojson-debug-[borderType]:', borderType)
   const fill = await getShapeFill(node, warpObj, source, groupHierarchy)
 
   const isShape = (custShapType && type !== 'diagram') 

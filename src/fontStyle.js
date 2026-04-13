@@ -263,7 +263,6 @@ export function getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles
 
   const baseline = getTextByPathList(node, ['a:rPr', 'attrs', 'baseline'])
   if (baseline && !isNaN(fontSize)) {
-    console.log('(00)-pptxtojson-debug-[---10]:', node)
     fontSize -= 10
   }
 

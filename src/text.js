@@ -179,6 +179,22 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
   for (const p of paragraphs) {
     if (!p) continue
     let runs = p['a:r']
+    const endParaRPr = p['a:endParaRPr']
+    if (!runs && endParaRPr) {
+      let lineHeight = 1.2
+      const sz = Number(endParaRPr.attrs.sz)
+      if (!isNaN(sz) && sz > 0) lineHeight = lineHeight * (sz / 100)
+      const useImportLineHeight = lineHeightImport + (lineHeightImport - 1) * 0.5
+      const paragraphHtml = `<p style="line-height: ${lineHeight * useImportLineHeight}px;">` + '<br></p>'
+      result.push({
+        text: '',
+        lines: [],
+        lineSpans: '',
+        // paragraphHtml: `<br style="line-height: 40px;">`,
+        paragraphHtml: paragraphHtml,
+        paraStyle: ''
+      })
+    }
     if (!runs) continue
     runs = Array.isArray(runs) ? runs : [runs]
 
@@ -210,14 +226,13 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
     }
 
     const charStyleList = getCharStyleList(fullText, runList)
-    // console.log('(00)-pptxtojson-debug-[charStyleList]:', charStyleList)
     const charWidth = realFontSize
     let lines
-    if (fullText.length > 5 && fullText.includes(' ')) {
+    if (fullText.replaceAll(' ', '').length > 5 && fullText.includes(' ')) {
       lines = wrapTextProfessional(fullText, textBoxWidthPx - 13, charWidth, charStyleList)
     }
     else {
-      lines = wrapTextProfessional(fullText, textBoxWidthPx, charWidth, charStyleList)
+      lines = wrapTextProfessional(fullText, textBoxWidthPx + 15, charWidth, charStyleList)
     }
 
     // ===================== 正确生成 HTML =====================
@@ -243,27 +258,29 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
       // let charIndex = lineStart
       let curStyleText = charStyleList[0].styleText
       let curSpan = `<span style="${curStyleText}">` 
-      let previousStyle
+      let styleLeftSymbol 
       for (let i = 0; i < line.length; i++) {
 
         const lineChar = line[i]
         lineChar
-        const thisStyle = charStyleList[currentPos] 
+        let thisStyle = charStyleList[currentPos] 
         currentPos ++
         if (curStyleText === thisStyle.styleText) {
+
           curSpan += line[i]
         }
         else {
+          // 右符号要跟左符号样式统一
           if (line[i] === '）') {
-            // sfas
-            console.log('(00)-pptxtojson-debug-[previousStyle]:', previousStyle)
+            thisStyle = styleLeftSymbol
 
           }
           curStyleText = thisStyle.styleText
-          previousStyle = charStyleList[currentPos - 1] 
           curSpan += `</span><span style="${curStyleText}">` + line[i]
-          // console.log('(00)-pptxtojson-debug-[line[i],thisStyle,curStyleText]:', line[i], thisStyle, curStyleText)
 
+        }
+        if (line[i].includes('（') && !line[i].includes('）')) {
+          styleLeftSymbol = thisStyle
         }
         // charIndex += 1
       }
@@ -1443,9 +1460,7 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
 
   let styleText = ''
   const fontColor = getFontColor(node, pNode, lstStyle, pFontStyle, lvl, warpObj)
-  console.log('(00)-pptxtojson-getSpanStyleInfo-[fontColor]:1', node)
   const fontSize = getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles, textBodyNode, pNode)
-  // console.log('(00)-genTextBody-:new-----fontSize:)', fontSize)
   const fontType = getFontType(node, type, warpObj, slideLayoutSpNode, slideMasterSpNode, slideMasterTextStyles)
   const fontBold = getFontBold(node)
   const fontItalic = getFontItalic(node)
@@ -1454,7 +1469,6 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   const fontSpace = getFontSpace(node)
   const shadow = getFontShadow(node, warpObj)
   const subscript = getFontSubscript(node)
-  console.log('(00)-pptxtojson-getSpanStyleInfo-[fontColor]:--fontType', fontType)
 
   if (fontColor) {
     if (typeof fontColor === 'string') styleText += `color: ${fontColor};`
@@ -1479,7 +1493,6 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   const hasLink = linkID && warpObj['slideResObj'][linkID]
 
   const aRpr = getTextByPathList(node, ['a:rPr', 'attrs'])
-  console.log('(00)-pptxtojson-getSpanStyleInfo-[fontColor]:', fontColor)
   let lineHight115
   let lineHight11
   if (aRpr && aRpr.b) {
@@ -1500,7 +1513,6 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
     subscript,
     shadow,
   }
-  console.log('(00)-pptxtojson-debug-[text,styleObj]:', text, styleObj)
 
   return {
     styleText,

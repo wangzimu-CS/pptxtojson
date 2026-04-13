@@ -2,8 +2,6 @@ import { getTextByPathList } from './utils'
 
 export function getHorizontalAlign(node, pNode, type, warpObj, totalAlign) {
   let algn = getTextByPathList(node, ['a:pPr', 'attrs', 'algn'])
-  // console.log('(00)-genTextBody-align-getHorizontalAlign--algn:', algn)
-  console.log('(00)-genTextBody-align-getHorizontalAlign--[node, pNode, type, warpObj]:', node, pNode, type, warpObj)
   if (!algn) algn = getTextByPathList(pNode, ['a:pPr', 'attrs', 'algn'])
 
   if (!algn) {
@@ -15,7 +13,6 @@ export function getHorizontalAlign(node, pNode, type, warpObj, totalAlign) {
       }
       const lvlStr = 'a:lvl' + lvlIdx + 'pPr'
       algn = getTextByPathList(warpObj, ['slideLayoutTables', 'typeTable', type, 'p:txBody', 'a:lstStyle', lvlStr, 'attrs', 'algn'])
-      console.log('(00)-genTextBody-align-getHorizontalAlign--algn:', algn)
       if (!algn) algn = getTextByPathList(warpObj, ['slideMasterTables', 'typeTable', type, 'p:txBody', 'a:lstStyle', lvlStr, 'attrs', 'algn'])
       if (!algn) algn = getTextByPathList(warpObj, ['slideMasterTextStyles', 'p:titleStyle', lvlStr, 'attrs', 'algn'])
       if (!algn && type === 'subTitle') {

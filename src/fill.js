@@ -773,7 +773,6 @@ export function getSolidFill(solidFill, clrMap, phClr, warpObj) {
     if (sysClr) color = sysClr
   }
 
-  console.log('(00)-pptxtojson-getSpanStyleInfo-[fontColor]:-getFontColor-[filTyp]:-getSolidFill-[color]', color)
   const originColor = color
   let isAlpha = false
   const alpha = parseInt(getTextByPathList(clrNode, ['a:alpha', 'attrs', 'val'])) / 100000
@@ -809,7 +808,7 @@ export function getSolidFill(solidFill, clrMap, phClr, warpObj) {
     color = applyTint(color, tint, isAlpha)
   }
   // satMod tint
-  console.log('(00)-pptxtojson-getSpanStyleInfo-[fontColor]:-getFontColor-[filTyp]:-getSolidFill-[alpha,hueMod,lumMod,lumOff,satMod,shade,tint]', alpha, hueMod, lumMod, lumOff, satMod, shade, tint)
+  // console.log('(00)-pptxtojson-getSpanStyleInfo-[fontColor]:-getFontColor-[filTyp]:-getSolidFill-[alpha,hueMod,lumMod,lumOff,satMod,shade,tint]', alpha, hueMod, lumMod, lumOff, satMod, shade, tint)
   if (originColor && tint && !isAlpha) {
     color = originColor
   }
