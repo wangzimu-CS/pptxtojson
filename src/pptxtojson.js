@@ -692,6 +692,7 @@ async function processNodesInSlide(nodeKey, nodeValue, warpObj, source, groupHie
   switch (nodeKey) {
     case 'p:sp': // Shape, Text
       json = await processSpNode(nodeValue, warpObj, source, groupHierarchy)
+      console.log('(00)-pptxtojson-debug-[元素]-json:', json)
       break
     case 'p:cxnSp': // Shape, Text
       json = await processCxnSpNode(nodeValue, warpObj, source)
@@ -801,32 +802,113 @@ async function processGroupSpNode(node, warpObj, source, parentGroupHierarchy = 
   const currentGroupHierarchy = [...parentGroupHierarchy, node]
 
   const elements = []
+  const parentGroupInfo = {
+    x,
+    y,
+    chx,
+    chy,
+    cx,
+    cy,
+    chcx,
+    chcy,
+    ws,
+    hs
+  }
   for (const nodeKey in node) {
     if (node[nodeKey].constructor === Array) {
       for (const item of node[nodeKey]) {
-        const ret = await processNodesInSlide(nodeKey, item, warpObj, source, currentGroupHierarchy)
+        warpObj = {...warpObj, isInGroup: true}
+        const ret = await processNodesInSlide(nodeKey, {...item, isInGroup: true, groupDeep: node.groupDeep ? node.groupDeep + 1 : 1, parentGroupInfo}, warpObj, source, currentGroupHierarchy)
         if (ret) elements.push(ret)
       }
     }
     else {
-      const ret = await processNodesInSlide(nodeKey, node[nodeKey], warpObj, source, currentGroupHierarchy)
+      warpObj = {...warpObj, isInGroup: true}
+      const ret = await processNodesInSlide(nodeKey, {...node[nodeKey], isInGroup: true, groupDeep: node.groupDeep ? node.groupDeep + 1 : 1, parentGroupInfo}, warpObj, source, currentGroupHierarchy)
       if (ret) elements.push(ret)
     }
   }
 
-  const processedElements = elements.map(element => ({
-    ...element,
-    left: numberToFixed((element.left - chx) * ws),
-    top: numberToFixed((element.top - chy) * hs),
-    width: numberToFixed(element.width * ws),
-    height: numberToFixed(element.height * hs),
-    ...(element.type === 'group' && element.elements ? {
-      elements: processNestedGroupElements(element.elements, ws, hs)
-    } : {})
-  }))
+  const processedElements = elements.map(element => {
+
+    let left = numberToFixed((element.left - chx) * ws)
+    let top = numberToFixed((element.top - chy) * hs)
+    
+    if (node.groupDeep === 1) {
+      // console.log('(00)-pptxtojson-debug-[组内元素]-element:', element)
+      if (element.type === 'shape' && element.shapType === 'line') {
+        left = numberToFixed((element.left - chx) + 15 )
+        top = numberToFixed((element.top - chy) + 20 ) 
+      }
+      else if (element.type === 'text') {
+        // left = numberToFixed((element.left - chx) + 0)
+        top = numberToFixed((element.top - chy) + 10) 
+      }
+      else {
+        const parObj = node.parentGroupInfo
+        // left = numberToFixed((left - parObj.chx) * parObj.ws)
+        // top = numberToFixed((top - parObj.chy) * parObj.hs)
+        // left = numberToFixed((left * parObj.cx * 1.11))
+        // top = numberToFixed((top * parObj.cy * 1.89))
+        // let debugValue = 0
+        // if (element.id === '49') {
+        //   debugValue = 0
+        // }
+        // let guessValue = 3
+        // let topDiff = 0
+        // if (element.type === 'text' || (element.type === 'shape' && element.shapType === 'line')) {
+        //   guessValue = 5
+        //   topDiff = 8
+        // }
+        // left = numberToFixed((left * parObj.cx * cy * guessValue / (cx + cy)) + debugValue)
+        // top = numberToFixed((top * parObj.cy * cx * guessValue / (cx + cy)) + topDiff)
+      
+        const x1 = (element.left - chx) * ws
+        const y1 = (element.top - chy) * hs
+
+        left = x1 * parObj.ws
+        top = y1 * parObj.hs
+      }
+
+    }
+    // else if (!node.groupDeep) {
+    //   const parObj = node.parentGroupInfo
+    //   const guessValue = element.type === 'text' || (element.type === 'shape' && element.shapType === 'line') ? 5 : 3
+    //   left = numberToFixed((left * parObj.cx * cy * guessValue / (cx + cy)))
+    //   top = numberToFixed((top * parObj.cy * cx * guessValue / (cx + cy)))
+    // }
+
+    if (element.borderWidth) {
+      left = left - element.borderWidth / 2
+      // top = top - element.borderWidth
+    }
+    return {
+      ...element,
+      elementInGroupDeep: node.groupDeep,
+      left: left,
+      top: top,
+      width: numberToFixed(element.width * ws),
+      height: numberToFixed(element.height * hs),
+      ...(element.type === 'group' && element.elements ? {
+        elements: processNestedGroupElements(element.elements, ws, hs)
+      } : {})
+    }
+  })
+  // const processedElements = elements.map(element => ({
+  //   ...element,
+  //   // left: numberToFixed((element.left - chx) * ws),
+  //   // top: numberToFixed((element.top - chy) * hs),
+  //   left: node.groupDeep === 1 ? numberToFixed((element.left - chx) + (element.type === 'shape' || element.shapType === 'line' ? 15 : 0)) : numberToFixed((element.left - chx) * ws),
+  //   top: node.groupDeep === 1 ? numberToFixed((element.top - chy) + (element.type === 'shape' || element.shapType === 'line' ? 20 : 10)) : numberToFixed((element.top - chy) * hs),
+  //   width: numberToFixed(element.width * ws),
+  //   height: numberToFixed(element.height * hs),
+  //   ...(element.type === 'group' && element.elements ? {
+  //     elements: processNestedGroupElements(element.elements, ws, hs)
+  //   } : {})
+  // }))
 
   function processNestedGroupElements(elements, ws, hs, depth = 0) {
-    if (depth > 10) return elements
+    if (depth > 0) return elements
 
     return elements.map(element => {
       const processed = {
@@ -952,16 +1034,19 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
   else txtRotate = rotate
 
   let content = ''
+  let fullText = []
   // if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, true)
   const { borderColor, borderWidth, borderType, strokeDasharray } = getBorder(node, type, warpObj)
-  console.log('(00)-pptxtojson-debug-[borderType]:', borderType)
+  // console.log('(00)-pptxtojson-debug-[borderType]:', borderType)
   const fill = await getShapeFill(node, warpObj, source, groupHierarchy)
 
   const isShape = (custShapType && type !== 'diagram') 
                   || (shapType && (type === 'obj' || !type || shapType !== 'rect')) 
                   || (shapType && (fill || borderWidth))
                   // || (shapType && !isHasValidText && (fill || borderWidth))
-  if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, !isShape)
+  if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, !isShape, groupHierarchy)
+  // if (node['p:txBody']) fullText = genTextBodyFullText(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, true, groupHierarchy)
+  fullText = []
 
   let shadow
   const outerShdwNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:outerShdw'])
@@ -990,6 +1075,7 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
     borderStrokeDasharray: strokeDasharray,
     fill,
     content,
+    fullText,
     isFlipV,
     isFlipH,
     rotate,
@@ -1011,6 +1097,7 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
     const ext = getTextByPathList(slideXfrmNode, ['a:ext', 'attrs'])
     const w = parseInt(ext['cx']) * RATIO_EMUs_Points
     const h = parseInt(ext['cy']) * RATIO_EMUs_Points
+    console.log('(00)-pptxtojson-debug-[custom-shape]--[custShapType]:', custShapType)
     const d = getCustomShapePath(custShapType, w, h)
     if (!isHasValidText) data.content = ''
 

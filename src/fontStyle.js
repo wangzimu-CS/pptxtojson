@@ -263,7 +263,7 @@ export function getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles
 
   const baseline = getTextByPathList(node, ['a:rPr', 'attrs', 'baseline'])
   if (baseline && !isNaN(fontSize)) {
-    fontSize -= 10
+    // fontSize -= 10
   }
 
   fontSize = (isNaN(fontSize) || !fontSize) ? 18 : fontSize
