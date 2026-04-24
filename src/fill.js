@@ -178,6 +178,13 @@ export function getGradientFill(node, warpObj) {
   const gsLst = node['a:gsLst']['a:gs']
   const colors = []
   for (let i = 0; i < gsLst.length; i++) {
+    if (gsLst[i] && gsLst[i]['a:schemeClr']) {
+      const clrNode = gsLst[i]['a:schemeClr']
+      const schemeClr_val = 'a:' + getTextByPathList(clrNode, ['attrs', 'val'])
+      if (schemeClr_val === 'a:phClr') {
+        gsLst[i]['a:schemeClr']['attrs']['val'] = 'accent1'
+      }
+    }
     const lo_color = getSolidFill(gsLst[i], undefined, undefined, warpObj)
     const pos = getTextByPathList(gsLst[i], ['attrs', 'pos'])
 
@@ -189,14 +196,18 @@ export function getGradientFill(node, warpObj) {
   const lin = node['a:lin']
   let rot = 0
   let pathType = 'line'
+  let pathCenter
   if (lin) rot = angleToDegrees(lin['attrs']['ang'])
   else {
     const path = node['a:path']
     if (path && path['attrs'] && path['attrs']['path']) pathType = path['attrs']['path']
+    if (path && path['a:fillToRect']) pathCenter = path['a:fillToRect']['attrs']
+
   }
   return {
     rot,
     path: pathType,
+    pathCenter,
     colors: colors.sort((a, b) => parseInt(a.pos) - parseInt(b.pos)),
   }
 }
@@ -659,10 +670,50 @@ export async function getShapeFill(node, warpObj, source, groupHierarchy = []) {
   if (!fillValue) {
     const clrName = getTextByPathList(node, ['p:style', 'a:fillRef'])
     const idx = getTextByPathList(clrName, ['attrs', 'idx'])
-    if (idx === '1') {
-      fillValue = getSolidFill(clrName, undefined, undefined, warpObj)
-      type = 'color'
+    // const bgFillLst = warpObj['themeContent']['a:theme']['a:themeElements']['a:fmtScheme']['a:bgFillStyleLst']
+    const fillStyleLst = warpObj['themeContent']['a:theme']['a:themeElements']['a:fmtScheme']['a:fillStyleLst']
+    const fillList = []
+    for (const item of Object.keys(fillStyleLst)) {
+      if (item.includes('Fill')) {
+        const subObj = fillStyleLst[`${item}`]
+        if (Array.isArray(subObj)) {
+          for (const usbItem of subObj) {
+            const obj = {}
+            obj[item] = usbItem
+            fillList.push(obj)
+          }
+        }
+        else {
+          const obj = {}
+          obj[item] = fillStyleLst[`${item}`]
+          fillList.push(obj)
+        }
+      }
     }
+    const lnIdx = Number(idx) - 1
+    const fillNode = fillList[Number(lnIdx)]
+    if (fillNode && lnIdx > 0) {
+      const fillType = getFillType(fillNode)
+      if (fillType === 'NO_FILL') {
+        return null
+      }
+      else if (fillType === 'SOLID_FILL') {
+        const shpFill = fillNode['a:solidFill']
+        fillValue = getSolidFill(shpFill, undefined, undefined, warpObj)
+        type = 'color'
+      }
+      else if (fillType === 'GRADIENT_FILL') {
+        const shpFill = fillNode['a:gradFill']
+        const grabFillObj = getGradientFill(shpFill, warpObj)
+        fillValue = grabFillObj
+        type = 'gradient'
+      }
+    }
+
+    // if (idx === '1') {
+    //   fillValue = getSolidFill(clrName, undefined, undefined, warpObj)
+    //   type = 'color'
+    // }
   }
   if (!fillValue) {
     return null
@@ -744,6 +795,11 @@ export function getSolidFill(solidFill, clrMap, phClr, warpObj) {
     clrNode = solidFill['a:schemeClr']
     const schemeClr = 'a:' + getTextByPathList(clrNode, ['attrs', 'val'])
     color = getSchemeColorFromTheme(schemeClr, warpObj, clrMap, phClr) || ''
+    if (clrNode['a:hueOff']) {
+      const hueOffVal = getTextByPathList(clrNode['a:hueOff'], ['attrs', 'val'])
+      const finalColor = applyHueOffset(`#${color}`, parseInt(hueOffVal))
+      color = finalColor
+    }
   }
   else if (solidFill['a:scrgbClr']) {
     clrNode = solidFill['a:scrgbClr']
@@ -816,4 +872,81 @@ export function getSolidFill(solidFill, clrMap, phClr, warpObj) {
   if (color && color.indexOf('#') === -1) color = '#' + color
 
   return color
+}
+
+// 工具：色相偏移计算（支持 #RRGGBB）
+function applyHueOffset(hexColor, hueOff) {
+  const hsl = hexToHSL(hexColor)
+  let newHue = (hsl.h + (hueOff / 60000)) % 360
+  if (newHue < 0) newHue += 360
+  return HSLToHex(newHue, hsl.s, hsl.l)
+}
+
+// 工具：#RRGGBB → HSL
+function hexToHSL(hex) {
+  const r = parseInt(hex.slice(1, 3), 16) / 255
+  const g = parseInt(hex.slice(3, 5), 16) / 255
+  const b = parseInt(hex.slice(5, 7), 16) / 255
+
+  const max = Math.max(r, g, b), min = Math.min(r, g, b)
+  let h, s = (max + min) / 2
+  const l = (max + min) / 2
+  if (max === min) {
+    h = s = 0
+  }
+  else {
+    const d = max - min
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break
+      case g: h = (b - r) / d + 2; break
+      case b: h = (r - g) / d + 4; break
+      default:break
+    }
+    h *= 60
+  }
+  return { h, s, l }
+}
+
+// 工具：HSL → #RRGGBB
+function HSLToHex(h, s, l) {
+  let r, g, b
+  if (s === 0) {
+    r = g = b = l
+  }
+  else {
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1
+      if (t > 1) t -= 1
+      if (t < 1 / 6) return p + (q - p) * 6 * t
+      if (t < 1 / 2) return q
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
+      return p
+    }
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+    const p = 2 * l - q
+    r = hue2rgb(p, q, h / 360 + 1 / 3)
+    g = hue2rgb(p, q, h / 360)
+    b = hue2rgb(p, q, h / 360 - 1 / 3)
+  }
+  const toHex = x => Math.round(x * 255).toString(16).padStart(2, '0')
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+}
+
+export function dealGradientFill(targetObj, type = 'css') {
+  if (type === 'css') {
+    if (targetObj.type === 'gradient') {
+      const {rot, path, colors} = targetObj.value
+      const stops = colors.map(item => `${item.color} ${item.pos}`).join(', ')
+      let gradientStyle = `linear-gradient(${rot + 90}deg, ${stops})`
+      if (path === 'line') {
+        gradientStyle = `linear-gradient(${rot + 90}deg, ${stops})`
+      }
+      targetObj.grabFillObj = {
+        type: 'gradient',
+        value: targetObj.value,
+        cssText: gradientStyle
+      }
+    }
+  }
 }

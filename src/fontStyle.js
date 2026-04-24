@@ -1,6 +1,7 @@
 import { getTextByPathList } from './utils'
 import { getShadow } from './shadow'
 import { getFillType, getGradientFill, getSolidFill } from './fill'
+import { RATIO_EMUs_Points } from './constants'
 
 export function getFontType(node, type, warpObj, slideLayoutSpNode, slideMasterSpNode, slideMasterTextStyles) {
   const extractFont = (targetNode, isDirectRun = false) => {
@@ -198,6 +199,49 @@ export function getFontColor(node, pNode, lstStyle, pFontStyle, lvl, warpObj) {
   }
   return color || ''
 }
+export function getBackGroundColor(node, warpObj) {
+  const rPrNode = getTextByPathList(node, ['a:rPr'])
+  // let filTyp, color
+  let color
+  if (rPrNode) {
+    const highlight = rPrNode['a:highlight']
+    // console.log('(00)-pptxtojson-getBackGround:highlight:', highlight)
+    if (highlight) {
+      color = getSolidFill(highlight, undefined, undefined, warpObj)
+    }
+    // const gradFill = rPrNode['a:gradFill']
+    // console.log('(00)-pptxtojson-getBackGround:gradFill:', gradFill)
+    // if (gradFill) {
+    //   // color = getSolidFill(highlight, undefined, undefined, warpObj)
+    //   color = 'linear-gradient(to right, #ff6a6a, #6a6aff)'
+    // }
+  }
+  // filTyp = getFillType(rPrNode)
+  // if (filTyp === 'SOLID_FILL') {
+  //   const solidFillNode = rPrNode['a:solidFill']
+  //   color = getSolidFill(solidFillNode, undefined, undefined, warpObj)
+  // }
+  //   if (filTyp === 'GRADIENT_FILL') {
+  //     const gradientFillNode = rPrNode['a:gradFill']
+  //     const gradient = getGradientFill(gradientFillNode, warpObj)
+  //     return gradient
+  //   }
+  // }
+  // if (!color && getTextByPathList(lstStyle, ['a:lvl' + lvl + 'pPr', 'a:defRPr'])) {
+  //   const lstStyledefRPr = getTextByPathList(lstStyle, ['a:lvl' + lvl + 'pPr', 'a:defRPr'])
+  //   filTyp = getFillType(lstStyledefRPr)
+  //   if (filTyp === 'SOLID_FILL') {
+  //     const solidFillNode = lstStyledefRPr['a:solidFill']
+  //     color = getSolidFill(solidFillNode, undefined, undefined, warpObj)
+  //   }
+  // }
+  // if (!color) {
+  //   const sPstyle = getTextByPathList(pNode, ['p:style', 'a:fontRef'])
+  //   if (sPstyle) color = getSolidFill(sPstyle, undefined, undefined, warpObj)
+  //   if (!color && pFontStyle) color = getSolidFill(pFontStyle, undefined, undefined, warpObj)
+  // }
+  return color || ''
+}
 
 export function getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles, textBodyNode, pNode) {
   let fontSize
@@ -304,6 +348,26 @@ export function getFontShadow(node, warpObj) {
     const shadow = getShadow(txtShadow, warpObj)
     if (shadow) {
       const { h, v, blur, color } = shadow
+      if (!isNaN(v) && !isNaN(h)) {
+        return h + 'pt ' + v + 'pt ' + (blur ? blur + 'pt' : '') + ' ' + color
+      }
+    }
+  }
+  return ''
+}
+
+export function getFontOutLine(node, warpObj) {
+  // const txtShadow = getTextByPathList(node, ['a:rPr', 'a:effectLst', 'a:outerShdw'])
+  const txtShadow = getTextByPathList(node, ['a:rPr', 'a:ln', 'a:solidFill'])
+  const w = getTextByPathList(node, ['a:rPr', 'a:ln', 'attrs', 'w']) || (1 / RATIO_EMUs_Points)
+  if (txtShadow) {
+    // const shadow = getShadow(txtShadow, warpObj)
+    if (w) {
+      const color = getSolidFill(txtShadow, undefined, undefined, warpObj)
+      // const { h, v, blur, color } = shadow
+      const h = w * RATIO_EMUs_Points
+      const v = w * RATIO_EMUs_Points
+      const blur = w * RATIO_EMUs_Points
       if (!isNaN(v) && !isNaN(h)) {
         return h + 'pt ' + v + 'pt ' + (blur ? blur + 'pt' : '') + ' ' + color
       }

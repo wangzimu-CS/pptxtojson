@@ -1,7 +1,7 @@
 import JSZip from 'jszip'
 import { readXmlFile, simplifyLostLess } from './readXmlFile'
 import { getBorder } from './border'
-import { getSlideBackgroundFill, getShapeFill, getSolidFill, getPicFill, getPicFilters } from './fill'
+import { getSlideBackgroundFill, getShapeFill, getSolidFill, getPicFill, getPicFilters, dealGradientFill } from './fill'
 import { getChartInfo } from './chart'
 import { getVerticalAlign, getTextAutoFit } from './align'
 import { getPosition, getSize } from './position'
@@ -692,7 +692,6 @@ async function processNodesInSlide(nodeKey, nodeValue, warpObj, source, groupHie
   switch (nodeKey) {
     case 'p:sp': // Shape, Text
       json = await processSpNode(nodeValue, warpObj, source, groupHierarchy)
-      console.log('(00)-pptxtojson-debug-[元素]-json:', json)
       break
     case 'p:cxnSp': // Shape, Text
       json = await processCxnSpNode(nodeValue, warpObj, source)
@@ -730,10 +729,10 @@ async function processNodesInSlide(nodeKey, nodeValue, warpObj, source, groupHie
     const id = getTextByPathList(nodeValue, [`p:nv${targetKey}Pr`, 'p:cNvPr', 'attrs', 'id'])
     const pr = getTextByPathList(nodeValue, ['p:spPr'])
     const useBgFill = getTextByPathList(nodeValue, ['attrs', 'useBgFill'])
-    if (id) {
+    if (json && id) {
       json.id = id
     }
-    if (pr) {
+    if (json && pr) {
       json.propertySettings = useBgFill ? {...pr, useBgFill: true } : pr 
     }
   }
@@ -835,7 +834,6 @@ async function processGroupSpNode(node, warpObj, source, parentGroupHierarchy = 
     let top = numberToFixed((element.top - chy) * hs)
     
     if (node.groupDeep === 1) {
-      // console.log('(00)-pptxtojson-debug-[组内元素]-element:', element)
       if (element.type === 'shape' && element.shapType === 'line') {
         left = numberToFixed((element.left - chx) + 15 )
         top = numberToFixed((element.top - chy) + 20 ) 
@@ -1036,9 +1034,9 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
   let content = ''
   let fullText = []
   // if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, true)
-  const { borderColor, borderWidth, borderType, strokeDasharray } = getBorder(node, type, warpObj)
-  // console.log('(00)-pptxtojson-debug-[borderType]:', borderType)
+  const { borderColor, borderWidth, borderColorObj, borderType, strokeDasharray } = getBorder(node, type, warpObj)
   const fill = await getShapeFill(node, warpObj, source, groupHierarchy)
+  if (fill && fill.type === 'gradient') dealGradientFill(fill)
 
   const isShape = (custShapType && type !== 'diagram') 
                   || (shapType && (type === 'obj' || !type || shapType !== 'rect')) 
@@ -1070,6 +1068,7 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
     width,
     height,
     borderColor,
+    borderColorObj,
     borderWidth,
     borderType,
     borderStrokeDasharray: strokeDasharray,
@@ -1097,7 +1096,6 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
     const ext = getTextByPathList(slideXfrmNode, ['a:ext', 'attrs'])
     const w = parseInt(ext['cx']) * RATIO_EMUs_Points
     const h = parseInt(ext['cy']) * RATIO_EMUs_Points
-    console.log('(00)-pptxtojson-debug-[custom-shape]--[custShapType]:', custShapType)
     const d = getCustomShapePath(custShapType, w, h)
     if (!isHasValidText) data.content = ''
 

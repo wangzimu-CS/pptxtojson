@@ -1,6 +1,7 @@
 import tinycolor from 'tinycolor2'
 import { getSchemeColorFromTheme } from './schemeColor'
 import { getTextByPathList } from './utils'
+import { getGradientFill, dealGradientFill } from './fill'
 
 export function getBorder(node, elType, warpObj) {
   let lineNode = getTextByPathList(node, ['p:spPr', 'a:ln'])
@@ -17,10 +18,31 @@ export function getBorder(node, elType, warpObj) {
 
   let borderWidth = isNoFill ? 0 : (parseInt(getTextByPathList(lineNode, ['attrs', 'w'])) / 12700)
   if (isNaN(borderWidth)) {
-    if (lineNode) borderWidth = 0
+    if (lineNode['a:solidFill']) borderWidth = 2
+    else if (lineNode) borderWidth = 0
     else if (elType !== 'obj') borderWidth = 0
     else borderWidth = 1
   }
+  if (elType === 'text' && node['p:txBody']) {
+    const textNode = node['p:txBody']
+    const textNodeARList = getTextByPathList(textNode, ['a:p', 'a:r'])
+    const samplingItem = Array.isArray(textNodeARList) && textNodeARList.length > 0 ? textNodeARList[0] : textNodeARList
+    const flag = getTextByPathList(samplingItem, ['a:rPr', 'a:ln', 'attrs', 'w']) === '0'
+    if (flag) {
+      borderWidth = 0
+    }
+  }
+  let borderColorObj
+  if (lineNode['a:gradFill']) {
+    const gradFillObj = lineNode['a:gradFill'] 
+    const gradientFillInfo = getGradientFill(gradFillObj, warpObj)
+    borderColorObj = {
+      type: 'gradient',
+      value: gradientFillInfo,
+    }
+    dealGradientFill(borderColorObj)
+  }
+
 
   let borderColor = getTextByPathList(lineNode, ['a:solidFill', 'a:srgbClr', 'attrs', 'val'])
   if (!borderColor) {
@@ -98,8 +120,10 @@ export function getBorder(node, elType, warpObj) {
 
   return {
     borderColor,
+    borderColorObj,
     borderWidth,
     borderType,
     strokeDasharray,
   }
 }
+

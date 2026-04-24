@@ -2,7 +2,8 @@ import { eachElement, getTextByPathList } from './utils'
 import { applyTint } from './color'
 
 function extractChartColors(serNode, warpObj) {
-  if (serNode.constructor !== Array) serNode = [serNode]
+  if (serNode && serNode.constructor !== Array) serNode = [serNode]
+  if (!serNode) return
   const schemeClrs = []
   for (const node of serNode) {
     let schemeClr = getTextByPathList(node, ['c:spPr', 'a:solidFill', 'a:schemeClr'])

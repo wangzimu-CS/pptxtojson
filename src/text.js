@@ -4,6 +4,7 @@ import { getTextByPathList } from './utils'
 import {
   getFontType,
   getFontColor,
+  getBackGroundColor,
   getFontSize,
   getFontBold,
   getFontItalic,
@@ -12,6 +13,7 @@ import {
   getFontSpace,
   getFontSubscript,
   getFontShadow,
+  getFontOutLine
 } from './fontStyle'
 
 function parsePPTTextToLinesNew(shapeData, width) {
@@ -147,7 +149,6 @@ function getCharStyleList(fullText, runList) {
 
 function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyleUseInfo, paragraphInfo, styleObj, isInGroup) {
   if (!shapeData || typeof shapeData !== 'object') return []
-  console.log('(00)-pptxtojson-debug-[getStyleUseInfo]:', getStyleUseInfo)
   const spPr = shapeData['p:spPr']
   if (!spPr) return []
 
@@ -177,7 +178,7 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
   const result = []
   const isOnlyOneP = paragraphs.length === 1
   if (isInGroup) { 
-    console.log('(00)-pptxtojson-debug-[isInGroup]:--paragraphs', '组内元素', isInGroup, paragraphs)
+    // console.log('(00)-pptxtojson-debug-[isInGroup]:--paragraphs', '组内元素', isInGroup, paragraphs)
   }
   for (const p of paragraphs) {
     if (!p) continue
@@ -227,7 +228,7 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
         if (!isNaN(sz) && sz > 0) realFontSize = sz / 100
       }
     }
-    console.log('(00)-pptxtojson-debug-[getStyleUseInfo]:---文本处理是否遵循组逻辑[fullText,isInGroup]:', fullText, isInGroup)
+    // console.log('(00)-pptxtojson-debug-[getStyleUseInfo]:---文本处理是否遵循组逻辑[fullText,isInGroup]:', fullText, isInGroup)
 
     const charStyleList = getCharStyleList(fullText, runList)
     const charWidth = realFontSize
@@ -379,7 +380,7 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
       paraStyle: paraStyle
     })
   }
-  // console.log('(00)-genTextBody-:new-切行结果-lines:result', result)
+  console.log('(00)-genTextBody-:new-切行结果-lines:result', result)
   return result
 }
 
@@ -1131,7 +1132,7 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
           // }
           // const isInGroup = Array.isArray(groupHierarchy) && groupHierarchy.length > 0
           const isInGroup = warpObj.isInGroup
-          console.log('(00)-pptxtojson-debug-[isInGroup]:', '组内元素', isInGroup)
+          // console.log('(00)-pptxtojson-debug-[isInGroup]:', '组内元素', isInGroup)
           const cutLineResult = parsePPTTextToLines(spNode, width, height, lineHeight, getStyleInfo, paragraphInfo, styleObj, isInGroup)
           // const fontSize = getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles, textBodyNode, pNode)
           // console.log('(00)-genTextBody-:new---切行结果----cutLineResultNew:', cutLineResultNew)
@@ -1438,7 +1439,7 @@ export function genTextBodyFullText(textBodyNode, spNode, slideLayoutSpNode, sli
           // }
           // const isInGroup = Array.isArray(groupHierarchy) && groupHierarchy.length > 0
           const isInGroup = warpObj.isInGroup
-          console.log('(00)-pptxtojson-debug-[isInGroup]:', '组内元素', isInGroup)
+          // console.log('(00)-pptxtojson-debug-[isInGroup]:', '组内元素', isInGroup)
           const cutLineResult = parsePPTTextToLines(spNode, width, height, lineHeight, getStyleInfo, paragraphInfo, styleObj, isInGroup)
           // const fontSize = getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles, textBodyNode, pNode)
           // console.log('(00)-genTextBody-:new---切行结果----cutLineResultNew:', cutLineResultNew)
@@ -1787,6 +1788,8 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   if (lvlNode !== undefined) lvl = parseInt(lvlNode) + 1
 
   let text = node['a:t']
+  // console.log('(00)-pptxtojson-text====node属性:', text, node['a:rPr'])
+  // console.log('(00)-pptxtojson-text====node:', text, node['a:rPr']['a:highlight'])
   if (typeof text !== 'string') text = getTextByPathList(node, ['a:fld', 'a:t'])
   // if (typeof text !== 'string') text = '&nbsp;'
   if (typeof text !== 'string') text = ' '
@@ -1800,16 +1803,83 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   const fontDecoration = getFontDecoration(node)
   const fontDecorationLine = getFontDecorationLine(node)
   const fontSpace = getFontSpace(node)
-  const shadow = getFontShadow(node, warpObj)
+  let shadow = getFontShadow(node, warpObj)
   const subscript = getFontSubscript(node)
+  let background = getBackGroundColor(node, warpObj)
+
+  if (!shadow) {
+    shadow = getFontOutLine(node, warpObj)
+  }
+  console.log('(00)-pptxtojson-text====node属性[shadow]:', shadow)
+  // if (node['a:rPr']) {
+  //   console.log('(00)-pptxtojson-text====node属性a:ln:', text, node['a:rPr']['a:ln'])
+  //   const lnInfo = node['a:rPr']['a:ln']
+  //   if (lnInfo && lnInfo['a:solidFill']) {
+  //     let w = 0
+  //     if (lnInfo['attrs'] && lnInfo['attrs']['w']) {
+  //       w = lnInfo['attrs']['w'] * RATIO_EMUs_Points
+  //     }
+  //     const outLineClr = getSolidFill(lnInfo['a:solidFill'], undefined, undefined, warpObj)
+  //     console.log('(00)-pptxtojson-text====node属性a:ln:----outLineClr:', text, w, outLineClr, shadow)
+  //     console.log('(00)-pptxtojson-text====node属性[shadow]:', shadow)
+  //     // styleText += ``
+  //   }
+  // }
 
   if (fontColor) {
     if (typeof fontColor === 'string') styleText += `color: ${fontColor};`
     else if (fontColor.colors) {
-      const { colors, rot } = fontColor
-      const stops = colors.map(item => `${item.color} ${item.pos}`).join(', ')
-      const gradientStyle = `linear-gradient(${rot + 90}deg, ${stops})`
-      styleText += `background: ${gradientStyle}; background-clip: text; color: transparent;`
+      const { colors, path, rot } = fontColor
+      // shape  //rect //circle // line
+      const getStartPosi = (obj) => {
+        let h = 'center'
+        let v = 'center'
+        const MaxValue = 100000
+        if (obj.l && Math.abs(obj.l) === MaxValue) {
+          h = obj.l / MaxValue < 0 ? 'left' : 'right'
+        }
+        else if (obj.r && Math.abs(obj.r) === MaxValue) {
+          h = obj.r / MaxValue > 0 ? 'left' : 'right'
+        }
+
+        if (obj.b && Math.abs(obj.b) === MaxValue) {
+          v = obj.b / MaxValue > 0 ? 'top' : 'bottom'
+        }
+        else if (obj.t && Math.abs(obj.t) === MaxValue) {
+          v = obj.t / MaxValue < 0 ? 'top' : 'bottom'
+        }
+
+        if (h === v && h === 'center') {
+          return 'center'
+        }
+
+        return `${h} ${v}`
+      }
+      let startPosi
+      if (fontColor.pathCenter) {
+        startPosi = getStartPosi(fontColor.pathCenter)
+      }
+
+      if (path === 'circle') {
+        // 只用到你有的颜色和位置
+        const colorStops = fontColor.colors
+          .map(item => `${item.color} ${item.pos}`)
+          .join(', ')
+        background = `radial-gradient(circle at ${startPosi}, ${colorStops})`
+        styleText += `background: ${background}; background-clip: text; color: transparent;`
+      }
+      else if (path === 'rect' || path === 'shape') {
+        const stops = colors.map(item => `${item.color} ${item.pos}`).join(', ')
+        const gradientStyle = `radial-gradient(ellipse at ${startPosi}, ${stops})`
+        styleText += `background: ${gradientStyle}; background-clip: text; color: transparent;`
+        background = gradientStyle        
+      }
+      else {
+        const stops = colors.map(item => `${item.color} ${item.pos}`).join(', ')
+        const gradientStyle = `linear-gradient(${rot + 90}deg, ${stops})`
+        styleText += `background: ${gradientStyle}; background-clip: text; color: transparent;`
+        background = gradientStyle
+      }      
     }
   }
   if (fontSize) styleText += `font-size: ${fontSize};`
@@ -1821,6 +1891,7 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   if (fontSpace) styleText += `letter-spacing: ${fontSpace};`
   if (subscript) styleText += `vertical-align: ${subscript};`
   if (shadow) styleText += `text-shadow: ${shadow};`
+  if (background && !fontColor.colors) styleText += `background: ${background};`
 
   const linkID = getTextByPathList(node, ['a:rPr', 'a:hlinkClick', 'attrs', 'r:id'])
   const hasLink = linkID && warpObj['slideResObj'][linkID]
@@ -1835,6 +1906,11 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
     // lineHight115 = aRpr.b === '1'
     // lineHight115 = aRpr.sz === '2800' 
   }
+
+  // console.log('(00)-pptxtojson-getBackGround:styleText:', styleText)
+  console.log('(00)-pptxtojson-text====node属性[shadow]--styleText:', styleText)
+
+
   const styleObj = {
     fontSize: fontSize.replace('pt', 'px'),
     fontType,
@@ -1845,6 +1921,7 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
     fontSpace,
     subscript,
     shadow,
+    background
   }
 
   return {
