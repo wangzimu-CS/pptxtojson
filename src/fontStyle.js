@@ -375,3 +375,70 @@ export function getFontOutLine(node, warpObj) {
   }
   return ''
 }
+
+// PPT 7 种列表标识符 → 自动生成对应标号
+export function getPPMark(index, type) {
+  // 序号从 1 开始
+  const num = parseInt(index) || 1
+
+  switch (type) {
+    // 1. 阿拉伯数字 1. 2. 3.
+    case 'arabicPeriod':
+      return `${num}.`
+
+    // 2. 带圈数字 ① ② ③
+    case 'circleNumDbPlain':
+      return `①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳`[num - 1] || `${num}圈`
+
+    // 3. 大写罗马数字 I. II. III.
+    case 'romanUcPeriod':
+      return toRoman(num) + '.'
+
+    // 4. 大写字母 A. B. C.
+    case 'alphaUcPeriod':
+      return toLetter(num, true) + '.'
+
+    // 5. 小写字母带右括号 a) b) c)
+    case 'alphaLcParenR':
+      return toLetter(num, false) + ')'
+
+    // 6. 小写字母 a. b. c.
+    case 'alphaLcPeriod':
+      return toLetter(num, false) + '.'
+
+    // 7. 中文数字 一、二、三、
+    case 'ea1JpnChsDbPeriod':
+      return toChineseNum(num) + '、'
+
+    default:
+      return `${num}.`
+  }
+}
+
+// 辅助：转大写/小写字母
+function toLetter(num, upper = false) {
+  const code = (num - 1) % 26
+  const char = String.fromCharCode(97 + code)
+  return upper ? char.toUpperCase() : char
+}
+
+// 辅助：转罗马数字
+function toRoman(num) {
+  const roman = [
+    ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX'],
+    ['', 'X', 'XX', 'XXX', 'XL', 'L', 'LX', 'LXX', 'LXXX', 'XC'],
+    ['', 'C', 'CC', 'CCC', 'CD', 'D', 'DC', 'DCC', 'DCCC', 'CM'],
+  ]
+  const digits = num.toString().padStart(3, '0').split('')
+  return (
+    roman[2][digits[0]] + roman[1][digits[1]] + roman[0][digits[2]]
+  )
+}
+
+// 辅助：转中文数字
+function toChineseNum(num) {
+  const ch = '零一二三四五六七八九十'
+  if (num <= 10) return ch[num]
+  if (num < 20) return '十' + ch[num - 10]
+  return num
+}

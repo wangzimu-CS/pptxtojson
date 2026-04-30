@@ -733,7 +733,16 @@ async function processNodesInSlide(nodeKey, nodeValue, warpObj, source, groupHie
       json.id = id
     }
     if (json && pr) {
-      json.propertySettings = useBgFill ? {...pr, useBgFill: true } : pr 
+      const newPropertySettingsObj = (useBgFill ? {...pr, useBgFill: true } : pr)
+      // console.log('(00)---getProperty:--json.propertySettings[', json.propertySettings, 'newPropertySettingsObj:', newPropertySettingsObj)
+      const oriPropertySettings = getTextByPathList(json, ['propertySettings', 'a:effectLst'])
+      if (oriPropertySettings) {
+        !newPropertySettingsObj['a:effectLst'] ? newPropertySettingsObj['a:effectLst'] = json.propertySettings['a:effectLst']
+          : newPropertySettingsObj['a:effectLst'] = {...json.propertySettings['a:effectLst'], ...newPropertySettingsObj['a:effectLst']}
+        // json.propertySettings = {...json.propertySettings}
+      } 
+      json.propertySettings = newPropertySettingsObj
+      // console.log('(00)---getProperty:--json.propertySettings1[', json.propertySettings)
     }
   }
   return json
@@ -1045,6 +1054,10 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
   if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, !isShape, groupHierarchy)
   // if (node['p:txBody']) fullText = genTextBodyFullText(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, true, groupHierarchy)
   fullText = []
+  const propertySettings = {}
+  let offectObj = {}
+  const defaultStyleObj = getTextByPathList(node, ['p:style'])
+  const defaultEffectRef = getTextByPathList(node, ['p:style', 'a:effectRef'])
 
   let shadow
   const outerShdwNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:outerShdw'])
@@ -1054,11 +1067,45 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
   const glowNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:glow'])
   if (glowNode) glow = getGlow(glowNode, warpObj)
 
+  // 获取倒影配置
+  let reflection
+  const reflectionNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:reflection'])
+  const effectLstNode = getTextByPathList(node, ['p:spPr', 'a:effectLst'])
+  if (effectLstNode && !reflectionNode) {
+    //
+  }
+  else if (!effectLstNode && !reflectionNode) {
+    const effectStyleLst = warpObj['themeContent']['a:theme']['a:themeElements']['a:fmtScheme']['a:effectStyleLst']
+    const idx = getTextByPathList(node, ['p:style', 'a:effectRef', 'attrs', 'idx'])
+    const effectStyleList = getTextByPathList(effectStyleLst, ['a:effectStyle'])
+    const lnIdx = Number(idx) - 1
+    if (lnIdx >= 0) {
+      const targetEffect = effectStyleList[Number(lnIdx)]
+      // const defaultReflection = getTextByPathList(targetEffect, ['a:effectLst', 'a:reflection'])
+      const defaultReflection = getTextByPathList(targetEffect, ['a:effectLst'])
+      offectObj = {...offectObj, ...defaultReflection}
+      if (targetEffect) {
+        reflection = defaultReflection
+      }
+    }
+  }
+  else if (reflectionNode) {
+    reflection = reflectionNode
+    reflection
+  }
+  if (reflection) {
+    propertySettings['a:effectLst'] = offectObj
+  }
+
   let softEdge
   const softEdgeNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:softEdge'])
   if (softEdgeNode) softEdge = getSoftEdge(softEdgeNode)
 
   const vAlign = getVerticalAlign(node, slideLayoutSpNode, slideMasterSpNode, type)
+  const vertValue = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert'])
+  let textDirectionValue
+  vertValue ? textDirectionValue = vertValue : ''
+  // const vertAttrs = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs'])
   const isVertical = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert']) === 'eaVert'
   const autoFit = getTextAutoFit(node, slideLayoutSpNode, slideMasterSpNode)
 
@@ -1069,6 +1116,7 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
     height,
     borderColor,
     borderColorObj,
+    propertySettings,
     borderWidth,
     borderType,
     borderStrokeDasharray: strokeDasharray,
@@ -1133,6 +1181,7 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
     ...data,
     type: 'text',
     isVertical,
+    textDirectionValue,
     rotate: txtRotate,
   }
 }

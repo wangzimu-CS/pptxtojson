@@ -1,5 +1,6 @@
 import { getHorizontalAlign, getParagraphSpacing } from './align'
 import { getTextByPathList } from './utils'
+import { getSolidFill, } from './fill'
 
 import {
   getFontType,
@@ -13,7 +14,7 @@ import {
   getFontSpace,
   getFontSubscript,
   getFontShadow,
-  getFontOutLine
+  getFontOutLine, getPPMark
 } from './fontStyle'
 
 function parsePPTTextToLinesNew(shapeData, width) {
@@ -106,7 +107,7 @@ function parsePPTTextToLinesNew(shapeData, width) {
   return result
 }
 
-
+const cacheBuAutoNumType = []
 // 生成字符级样式数组
 function getCharStyleList(fullText, runList) {
   const textLength = fullText.length
@@ -180,7 +181,80 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
   if (isInGroup) { 
     // console.log('(00)-pptxtojson-debug-[isInGroup]:--paragraphs', '组内元素', isInGroup, paragraphs)
   }
+  let buAutoNumTypeCache
+  let buAutoNumTypeCnt = 0
+  let listSpanEl
   for (const p of paragraphs) {
+    const listSpanElObj = {}
+    listSpanElObj.styleText = ''
+    let itemColor
+    const listType = getListType(p)
+    // const listLevel = getListLevel(p)
+    // console.log('(00)-pptx-TextEl--[p,listType]:', listType, listLevel, p )
+    if (listType && listType === 'ul') {
+      listSpanElObj.type = 'ul'
+      const buFont = getTextByPathList(p, ['a:pPr', 'a:buFont'])
+      let buFontType
+      if (buFont) buFontType = getTextByPathList(p, ['a:pPr', 'a:buFont', 'attrs', 'typeface'])
+      const slideMasterTextStyles = warpObj['slideMasterTextStyles']
+      const fontType = getFontType(p, type, warpObj, slideLayoutSpNode, slideMasterSpNode, slideMasterTextStyles)
+      fontType
+      // const buchar = getTextByPathList(p, ['a:pPr', 'a:buChar'])
+      const buClr = getTextByPathList(p, ['a:pPr', 'a:buClr'])
+      let buClrValue
+      if (buClr) buClrValue = getSolidFill(buClr)
+      const buChar = getTextByPathList(p, ['a:pPr', 'a:buChar'])
+      let buCharType = ''
+      if (buChar) buCharType = getTextByPathList(p, ['a:pPr', 'a:buChar', 'attrs', 'char'])
+      // const buAutoNum = getTextByPathList(p, ['a:pPr', 'a:buAutoNum'])
+      listSpanEl = `<span style="color: ${buClrValue}; font-family: ${buFontType};">${buCharType}</span>`
+      if (buClrValue) {
+        listSpanElObj.color = buClrValue
+        listSpanElObj.styleText += `color: ${buClrValue};`
+      }
+      if (buFontType) {
+        listSpanElObj.fontFamily = buFontType
+        listSpanElObj.styleText += `font-family: ${buFontType};`
+      }
+      if (buCharType) {
+        listSpanElObj.text = buCharType
+      }
+      // listSpanEl = `<span style="${listSpanElObj.styleText}">${listSpanElObj.text}</span>`
+    }
+    if (listType && listType === 'ol') {
+      listSpanElObj.type = 'ol'
+      // const buchar = getTextByPathList(p, ['a:pPr', 'a:buChar'])
+      // const buClr = getTextByPathList(p, ['a:pPr', 'a:buClr'])
+      const buAutoNum = getTextByPathList(p, ['a:pPr', 'a:buAutoNum'])
+      const buFont = getTextByPathList(p, ['a:pPr', 'a:buFont'])
+      let buFontType
+      if (buFont) buFontType = getTextByPathList(p, ['a:pPr', 'a:buFont', 'attrs', 'typeface'])
+
+      const slideMasterTextStyles = warpObj['slideMasterTextStyles']
+      const fontType = getFontType(p, type, warpObj, slideLayoutSpNode, slideMasterSpNode, slideMasterTextStyles)
+
+      let buAutoNumType = ''
+      if (buAutoNum) buAutoNumType = getTextByPathList(p, ['a:pPr', 'a:buAutoNum', 'attrs', 'type'])
+      if (buAutoNumTypeCache === buAutoNumType) {
+        buAutoNumTypeCnt++
+      }
+      else {
+        buAutoNumTypeCnt = 0
+        cacheBuAutoNumType.push(buAutoNumType)
+      }
+      const markText = getPPMark(buAutoNumTypeCnt, buAutoNumType)
+      // listSpanEl = `<span style="color: ${buClrValue}; font-family: ${buFontType};">${buCharType}</span>`
+      // listSpanEl = `<span style="font-family: ${fontType || buFontType};">${markText}</span>`
+      if (fontType || buFontType) {
+        listSpanElObj.fontFamily = fontType || buFontType
+        listSpanElObj.styleText += `font-family: ${fontType || buFontType};`
+      }
+      if (markText) {
+        listSpanElObj.text = markText
+      }
+      listSpanEl = `<span style="${listSpanElObj.styleText}">${listSpanElObj.text}</span>`
+      buAutoNumTypeCache = buAutoNumType
+    }
     if (!p) continue
     let runs = p['a:r']
     const endParaRPr = p['a:endParaRPr']
@@ -271,7 +345,10 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
 
         const lineChar = line[i]
         lineChar
-        let thisStyle = charStyleList[currentPos] 
+        let thisStyle = charStyleList[currentPos]
+        if (thisStyle.styleObj.color) {
+          itemColor = thisStyle.styleObj.color
+        } 
         currentPos ++
         if (curStyleText === thisStyle.styleText) {
 
@@ -293,26 +370,6 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
         // charIndex += 1
       }
       curSpan += '</span>'
-      // // console.log('(00)-genTextBody-:new-切行结果-line_in_lines:[curSpan]', line, curSpan)
-      // lineSpans.push('<span style=" white-space: pre ">' + curSpan + '</span>')
-      // const parts = []
-      // for (const run of runList) {
-      //   if (run.end <= lineStart || run.start >= lineEnd) continue
-      //   const s = Math.max(run.start, lineStart) - run.start
-      //   const e = Math.min(run.end, lineEnd) - run.start
-      //   const txt = run.text.slice(s, e)
-
-      //   let styleStr = ''
-      //   for (const key in run.style) {
-      //     styleStr += key + ':' + run.style[key] + ';'
-      //   }
-      //   if (run.styleText) {
-      //     parts.push('<span style="' + run.styleText + '">' + txt + '</span>')
-      //   }
-      //   else {
-      //     parts.push('<span style="' + styleStr + '">' + txt + '</span>')
-      //   }
-      // }
 
       // 行 span 无任何样式！
       lineHight = realFontSize * lineHightRadio
@@ -368,7 +425,12 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
       const lineHeightValue = isInGroup ? realFontSize * lineHeightImport : lineHight * useImportLineHeight
       // paragraphHtml = `<p style="${useStyleText} line-height: ${lineHight * useImportLineHeight}px;">` + linesString + '</p>'
       // paragraphHtml = `<p style="${useStyleText} line-height: ${realFontSize * lineHeightImport}px;">` + linesString + '</p>'
-      paragraphHtml = `<p style="${useStyleText} line-height: ${lineHeightValue}px;">` + linesString + '</p>'
+      let listSpanElText = listSpanEl || ''
+      if (itemColor && listSpanElObj.text && listSpanElObj.styleText) {
+        listSpanElObj.styleText += `color: ${itemColor}`
+        listSpanElText = `<span style="${listSpanElObj.styleText}">${listSpanElObj.text}</span>`
+      }
+      paragraphHtml = `<p style="${useStyleText} line-height: ${lineHeightValue}px;">` + listSpanElText + linesString + '</p>'
       // // console.log('(00)-genTextBody-:new---切行结果----text--------------------:lines:', lines)
       
     }
@@ -1006,8 +1068,9 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
   const listTypes = []
   // console.log('(00)-genTextBody-:new---spNode:', spNode)
   // console.log('(00)-genTextBody-:new---pNodes:', pNodes)
-  
+  // console.log('(00)-pptx-TextEl--[pNodes]:', pNodes, pNodes.length)
   for (const pNode of pNodes) {
+    // console.log('(00)-pptx-TextEl--[pNodes--pNode]:', pNode)
     // // console.log('(00)-genTextBody-:pNode:', pNode)
     let rNode = pNode['a:r']
     // console.log('(00)-genTextBody-:rNode:', rNode)
@@ -1044,6 +1107,14 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
       textAlign: align,
       styleText: styleText
     }
+    if (align === 'justify') {
+      styleText += `text-align-last: ${align};`
+      // styleText += `margin: 0;`
+      // styleText += `padding: 0;`
+      styleObj.textAlignLast = align
+      // styleObj.margin = 0
+      // styleObj.padding = 0
+    }
     if (spacing) {
       if (spacing.lineSpacing) {
         styleText += `line-height: ${spacing.lineSpacing};`
@@ -1068,7 +1139,7 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
 
     const listType = getListType(pNode)
     const listLevel = getListLevel(pNode)
-
+    console.log('(00)-pptx-TextEl--[listType,pNode]:', listType, pNode)
     const paragraphInfo = {start: '', end: ''}
     if (listType) {
       while (listTypes.length > listLevel + 1) {
@@ -1133,6 +1204,7 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
           // const isInGroup = Array.isArray(groupHierarchy) && groupHierarchy.length > 0
           const isInGroup = warpObj.isInGroup
           // console.log('(00)-pptxtojson-debug-[isInGroup]:', '组内元素', isInGroup)
+          // console.log('(00)-pptx-TextEl--[spNode]:', spNode)
           const cutLineResult = parsePPTTextToLines(spNode, width, height, lineHeight, getStyleInfo, paragraphInfo, styleObj, isInGroup)
           // const fontSize = getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles, textBodyNode, pNode)
           // console.log('(00)-genTextBody-:new---切行结果----cutLineResultNew:', cutLineResultNew)
@@ -1141,6 +1213,7 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
           // // console.log('(00)-genTextBody-:new---切行结果----cutLineResult:.paragraphHtml', cutLineResult[i].paragraphHtml)
           // console.log('(00)-genTextBody-:new---切行结果----cutLineResult:.lines', i, '-', cutLineResult[i].lines)
             text += cutLineResult[i].paragraphHtml
+            // console.log('(00)-pptx-TextEl--[cutLineResult[i]]:', i, cutLineResult[i])
             newDeal = true
           }
         }
@@ -1177,6 +1250,7 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
             text = text.replace('&nbsp;', ' ')
           }
           // console.log('(00)-genTextBody-:new---切行结果----text:::返回值------:', text)
+          // console.log('(00)-pptx-TextEl--[return text]:', text)
           return text
         }
       }
@@ -1351,6 +1425,10 @@ export function genTextBodyFullText(textBodyNode, spNode, slideLayoutSpNode, sli
       textAlign: align,
       styleText: styleText
     }
+    if (align === 'justify') {
+      styleText += `text-align-last: ${align};`
+    }
+    styleObj.textAlignLast = align
     if (spacing) {
       if (spacing.lineSpacing) {
         styleText += `line-height: ${spacing.lineSpacing};`
@@ -1825,7 +1903,6 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   //     // styleText += ``
   //   }
   // }
-
   if (fontColor) {
     if (typeof fontColor === 'string') styleText += `color: ${fontColor};`
     else if (fontColor.colors) {
@@ -1913,6 +1990,7 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
 
   const styleObj = {
     fontSize: fontSize.replace('pt', 'px'),
+    color: !fontColor.colors ? fontColor : '',
     fontType,
     fontBold,
     fontItalic,

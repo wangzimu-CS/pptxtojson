@@ -670,50 +670,58 @@ export async function getShapeFill(node, warpObj, source, groupHierarchy = []) {
   if (!fillValue) {
     const clrName = getTextByPathList(node, ['p:style', 'a:fillRef'])
     const idx = getTextByPathList(clrName, ['attrs', 'idx'])
-    // const bgFillLst = warpObj['themeContent']['a:theme']['a:themeElements']['a:fmtScheme']['a:bgFillStyleLst']
-    const fillStyleLst = warpObj['themeContent']['a:theme']['a:themeElements']['a:fmtScheme']['a:fillStyleLst']
-    const fillList = []
-    for (const item of Object.keys(fillStyleLst)) {
-      if (item.includes('Fill')) {
-        const subObj = fillStyleLst[`${item}`]
-        if (Array.isArray(subObj)) {
-          for (const usbItem of subObj) {
+    console.log('(00)-pptx-fillColor-[idx, clrName]:', idx, clrName)
+    if (idx === '1') {
+      fillValue = getSolidFill(clrName, undefined, undefined, warpObj)
+      type = 'color'
+    }
+    else {
+      // const bgFillLst = warpObj['themeContent']['a:theme']['a:themeElements']['a:fmtScheme']['a:bgFillStyleLst']
+      const fillStyleLst = warpObj['themeContent']['a:theme']['a:themeElements']['a:fmtScheme']['a:fillStyleLst']
+      const fillList = []
+      for (const item of Object.keys(fillStyleLst)) {
+        if (item.includes('Fill')) {
+          const subObj = fillStyleLst[`${item}`]
+          if (Array.isArray(subObj)) {
+            for (const usbItem of subObj) {
+              const obj = {}
+              obj[item] = usbItem
+              fillList.push(obj)
+            }
+          }
+          else {
             const obj = {}
-            obj[item] = usbItem
+            obj[item] = fillStyleLst[`${item}`]
             fillList.push(obj)
           }
         }
-        else {
-          const obj = {}
-          obj[item] = fillStyleLst[`${item}`]
-          fillList.push(obj)
+      }
+      const lnIdx = Number(idx) - 1
+      const fillNode = fillList[Number(lnIdx)]
+      if (fillNode && lnIdx >= 0) {
+        const fillType = getFillType(fillNode)
+        if (fillType === 'NO_FILL') {
+          return null
+        }
+        else if (fillType === 'SOLID_FILL') {
+          const shpFill = fillNode['a:solidFill']
+          const schemeClrVal = getTextByPathList(shpFill, ['a:schemeClr', 'attrs', 'val'])
+          // 判断是否为占位值
+          if (schemeClrVal && schemeClrVal === 'phClr') {
+            shpFill['a:schemeClr']['attrs']['val'] = 'accent1'
+          }
+          fillValue = getSolidFill(shpFill, undefined, undefined, warpObj)
+          type = 'color'
+        }
+        else if (fillType === 'GRADIENT_FILL') {
+          const shpFill = fillNode['a:gradFill']
+          const grabFillObj = getGradientFill(shpFill, warpObj)
+          fillValue = grabFillObj
+          type = 'gradient'
         }
       }
     }
-    const lnIdx = Number(idx) - 1
-    const fillNode = fillList[Number(lnIdx)]
-    if (fillNode && lnIdx > 0) {
-      const fillType = getFillType(fillNode)
-      if (fillType === 'NO_FILL') {
-        return null
-      }
-      else if (fillType === 'SOLID_FILL') {
-        const shpFill = fillNode['a:solidFill']
-        fillValue = getSolidFill(shpFill, undefined, undefined, warpObj)
-        type = 'color'
-      }
-      else if (fillType === 'GRADIENT_FILL') {
-        const shpFill = fillNode['a:gradFill']
-        const grabFillObj = getGradientFill(shpFill, warpObj)
-        fillValue = grabFillObj
-        type = 'gradient'
-      }
-    }
 
-    // if (idx === '1') {
-    //   fillValue = getSolidFill(clrName, undefined, undefined, warpObj)
-    //   type = 'color'
-    // }
   }
   if (!fillValue) {
     return null
