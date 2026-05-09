@@ -670,7 +670,6 @@ export async function getShapeFill(node, warpObj, source, groupHierarchy = []) {
   if (!fillValue) {
     const clrName = getTextByPathList(node, ['p:style', 'a:fillRef'])
     const idx = getTextByPathList(clrName, ['attrs', 'idx'])
-    console.log('(00)-pptx-fillColor-[idx, clrName]:', idx, clrName)
     if (idx === '1') {
       fillValue = getSolidFill(clrName, undefined, undefined, warpObj)
       type = 'color'

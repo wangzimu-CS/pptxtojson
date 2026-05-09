@@ -1,7 +1,7 @@
 import JSZip from 'jszip'
 import { readXmlFile, simplifyLostLess } from './readXmlFile'
 import { getBorder } from './border'
-import { getSlideBackgroundFill, getShapeFill, getSolidFill, getPicFill, getPicFilters, dealGradientFill } from './fill'
+import { getSlideBackgroundFill, getShapeFill, getSolidFill, getPicFill, getPicFilters, dealGradientFill, getPicFillOpacity } from './fill'
 import { getChartInfo } from './chart'
 import { getVerticalAlign, getTextAutoFit } from './align'
 import { getPosition, getSize } from './position'
@@ -1051,13 +1051,20 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
                   || (shapType && (type === 'obj' || !type || shapType !== 'rect')) 
                   || (shapType && (fill || borderWidth))
                   // || (shapType && !isHasValidText && (fill || borderWidth))
-  if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, !isShape, groupHierarchy)
-  // if (node['p:txBody']) fullText = genTextBodyFullText(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, true, groupHierarchy)
+  const bodyPrValueAttrs = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs'])
+  const anchorCtrValue = getTextByPathList(bodyPrValueAttrs, ['anchorCtr'])
+  const anchorValue = getTextByPathList(bodyPrValueAttrs, ['anchor'])
+  const anchorInfo = {
+    anchorValue,
+    anchorCtrValue
+  }
+  if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, !isShape, anchorInfo)
+  // if (node['p:txBody']) fullText = genTextBodyFullText(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, true)
   fullText = []
   const propertySettings = {}
   let offectObj = {}
-  const defaultStyleObj = getTextByPathList(node, ['p:style'])
-  const defaultEffectRef = getTextByPathList(node, ['p:style', 'a:effectRef'])
+  // const defaultStyleObj = getTextByPathList(node, ['p:style'])
+  // const defaultEffectRef = getTextByPathList(node, ['p:style', 'a:effectRef'])
 
   let shadow
   const outerShdwNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:outerShdw'])
@@ -1102,8 +1109,11 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
   if (softEdgeNode) softEdge = getSoftEdge(softEdgeNode)
 
   const vAlign = getVerticalAlign(node, slideLayoutSpNode, slideMasterSpNode, type)
+
+  // console.log('(00)-pptxtosjson-bodyPrValueAttrs:', bodyPrValueAttrs)
   const vertValue = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert'])
   let textDirectionValue
+  console.log('(00)-pptxtosjson-bodyPrValueAttrs:', vertValue, anchorValue, anchorCtrValue)
   vertValue ? textDirectionValue = vertValue : ''
   // const vertAttrs = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs'])
   const isVertical = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert']) === 'eaVert'
@@ -1182,6 +1192,7 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
     type: 'text',
     isVertical,
     textDirectionValue,
+    anchorInfo,
     rotate: txtRotate,
   }
 }
@@ -1197,6 +1208,94 @@ async function processPicNode(node, warpObj, source) {
   const order = node['attrs']['order']
   
   const rid = node['p:blipFill']['a:blip']['attrs']['r:embed']
+  // const targetInfo = getTextByPathList(node, ['p:blipFill', 'a:blip'])
+  // const targetInfo1 = getTextByPathList(node, ['p:blipFill', 'a:blip', 'a:alphaModFix'])
+  // const targetInfo2 = getTextByPathList(node, ['p:blipFill', 'a:blip', 'a:lum'])
+  const opacity = getPicFillOpacity( node['p:blipFill'])
+  // const targetInfo1 = getTextByPathList(node, ['p:blipFill', 'a:blip', 'a:alphaModFix', 'attrs', 'amt'])
+  const contrastInfo = getTextByPathList(node, ['p:blipFill', 'a:blip', 'a:lum', 'attrs', 'contrast'])
+  let contrast = 1
+  if (contrastInfo) {
+    // contrast = parseInt(contrastInfo) / 100000
+    contrast = parseInt(contrastInfo) / 10000
+  }
+  // console.log('(00)-ppt-image-el:node:-targetInfo:', opacity, contrast, targetInfo1, targetInfo2)
+  const blipFillPr = {
+    contrast,
+    opacity
+  }
+  const spPrNode = getTextByPathList(node, ['p:spPr'])
+  console.log('(00)-ppt-image-el:glowNode:', spPrNode)
+  console.log('(00)-ppt-image-el:node:', node)
+  
+  let effectData
+  {
+    const data = {}
+    const propertySettings = {}
+    let offectObj = {}
+    // const defaultStyleObj = getTextByPathList(node, ['p:style'])
+    // const defaultEffectRef = getTextByPathList(node, ['p:style', 'a:effectRef'])
+
+    let shadow
+    const outerShdwNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:outerShdw'])
+    if (outerShdwNode) shadow = getShadow(outerShdwNode, warpObj)
+
+    let glow
+    const glowNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:glow'])
+    if (glowNode) glow = getGlow(glowNode, warpObj)
+
+    // 获取倒影配置
+    let reflection
+    const reflectionNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:reflection'])
+    const effectLstNode = getTextByPathList(node, ['p:spPr', 'a:effectLst'])
+    if (effectLstNode && !reflectionNode) {
+    //
+    }
+    else if (!effectLstNode && !reflectionNode) {
+      const effectStyleLst = warpObj['themeContent']['a:theme']['a:themeElements']['a:fmtScheme']['a:effectStyleLst']
+      const idx = getTextByPathList(node, ['p:style', 'a:effectRef', 'attrs', 'idx'])
+      const effectStyleList = getTextByPathList(effectStyleLst, ['a:effectStyle'])
+      const lnIdx = Number(idx) - 1
+      if (lnIdx >= 0) {
+        const targetEffect = effectStyleList[Number(lnIdx)]
+        // const defaultReflection = getTextByPathList(targetEffect, ['a:effectLst', 'a:reflection'])
+        const defaultReflection = getTextByPathList(targetEffect, ['a:effectLst'])
+        offectObj = {...offectObj, ...defaultReflection}
+        if (targetEffect) {
+          reflection = defaultReflection
+        }
+      }
+    }
+    else if (reflectionNode) {
+      reflection = reflectionNode
+      reflection
+    }
+    if (reflection) {
+      propertySettings['a:effectLst'] = offectObj
+    }
+
+    let softEdge
+    const softEdgeNode = getTextByPathList(node, ['p:spPr', 'a:effectLst', 'a:softEdge'])
+    if (softEdgeNode) softEdge = getSoftEdge(softEdgeNode)
+
+    // const vAlign = getVerticalAlign(node, slideLayoutSpNode, slideMasterSpNode, type)
+
+    // console.log('(00)-pptxtosjson-bodyPrValueAttrs:', bodyPrValueAttrs)
+    // const vertValue = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert'])
+    // let textDirectionValue
+    // console.log('(00)-pptxtosjson-bodyPrValueAttrs:', vertValue, anchorValue, anchorCtrValue)
+    // vertValue ? textDirectionValue = vertValue : ''
+    // const vertAttrs = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs'])
+    // const isVertical = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert']) === 'eaVert'
+    if (shadow) data.shadow = shadow
+    if (glow) data.glow = glow
+    if (softEdge) data.softEdge = softEdge
+    // if (autoFit) data.autoFit = autoFit
+    if (link) data.link = link
+    console.log('(00)-ppt-image-el:data:', data)
+    effectData = data
+  }
+
   const imgName = resObj[rid]['target']
   const imgFileExt = extractFileExtension(imgName).toLowerCase()
   const zip = warpObj['zip']
@@ -1319,6 +1418,8 @@ async function processPicNode(node, warpObj, source) {
 
   const imageData = {
     type: 'image',
+    blipFillPr,
+    ...effectData,
     top,
     left,
     width,
@@ -1338,7 +1439,7 @@ async function processPicNode(node, warpObj, source) {
 
   if (filters) imageData.filters = filters
   if (link) imageData.link = link
-
+  // console.log('(00)-ppt-image-el:imageData:', imageData)
   return imageData
 }
 

@@ -37,12 +37,7 @@ function parsePPTTextToLinesNew(shapeData, width) {
   if (isNaN(cx) || cx <= 0) return []
   // const textBoxWidthPx = cx / 12700 // PPT官方公式，无写死
   const textBoxWidthPx = width // PPT官方公式，无写死
-  if (width === cx / 12700) {
-    // console.log('(00)-genTextBody-:new---切行结果----lines:--判断', '相同')
-  }
-  else {
-    // console.log('(00)-genTextBody-:new---切行结果----lines:--判断', '不同！', 'cx:', cx)
-  }
+
 
   // ======================
   // 2. 读取段落
@@ -139,8 +134,7 @@ function getCharStyleList(fullText, runList) {
       curGetIndex++
     }
     else {
-      // // console.log('(00)-genTextBody-:new-切行结果-charStyleList:【curStyle.end,i】:', curStyle.end, i)
-      // // console.log('(00)-genTextBody-:new-切行结果-charStyleList:异常！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！')
+      //
     }
     charStyleList[i] = { char: `【${curChar}】`, ...runList[curGetIndex]}
   }
@@ -148,7 +142,8 @@ function getCharStyleList(fullText, runList) {
   return charStyleList
 }
 
-function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyleUseInfo, paragraphInfo, styleObj, isInGroup) {
+function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyleUseInfo, paragraphInfo, styleObj, isInGroup, params) {
+  console.log('(00)-pptxtojson-params:', params)
   if (!shapeData || typeof shapeData !== 'object') return []
   const spPr = shapeData['p:spPr']
   if (!spPr) return []
@@ -178,9 +173,6 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
 
   const result = []
   const isOnlyOneP = paragraphs.length === 1
-  if (isInGroup) { 
-    // console.log('(00)-pptxtojson-debug-[isInGroup]:--paragraphs', '组内元素', isInGroup, paragraphs)
-  }
   let buAutoNumTypeCache
   let buAutoNumTypeCnt = 0
   let listSpanEl
@@ -190,7 +182,6 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
     let itemColor
     const listType = getListType(p)
     // const listLevel = getListLevel(p)
-    // console.log('(00)-pptx-TextEl--[p,listType]:', listType, listLevel, p )
     if (listType && listType === 'ul') {
       listSpanElObj.type = 'ul'
       const buFont = getTextByPathList(p, ['a:pPr', 'a:buFont'])
@@ -268,7 +259,6 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
         text: '',
         lines: [],
         lineSpans: '',
-        // paragraphHtml: `<br style="line-height: 40px;">`,
         paragraphHtml: paragraphHtml,
         paraStyle: ''
       })
@@ -302,7 +292,6 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
         if (!isNaN(sz) && sz > 0) realFontSize = sz / 100
       }
     }
-    // console.log('(00)-pptxtojson-debug-[getStyleUseInfo]:---文本处理是否遵循组逻辑[fullText,isInGroup]:', fullText, isInGroup)
 
     const charStyleList = getCharStyleList(fullText, runList)
     const charWidth = realFontSize
@@ -330,14 +319,6 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
     let lineHight = realFontSize * 1.2
 
     for (const line of lines) {
-      // console.log('(00)-genTextBody-:new-切行结果-lines:line', line)
-      // console.log('(00)-genTextBody-:new-切行结果-lines:line.length', line.length)
-      // const lineLen = line.length
-      // const lineStart = currentPos
-      // const lineEnd = currentPos + lineLen
-      // currentPos = lineEnd
-
-      // let charIndex = lineStart
       let curStyleText = charStyleList[0].styleText
       let curSpan = `<span style="${curStyleText}">` 
       let styleLeftSymbol 
@@ -431,7 +412,6 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
         listSpanElText = `<span style="${listSpanElObj.styleText}">${listSpanElObj.text}</span>`
       }
       paragraphHtml = `<p style="${useStyleText} line-height: ${lineHeightValue}px;">` + listSpanElText + linesString + '</p>'
-      // // console.log('(00)-genTextBody-:new---切行结果----text--------------------:lines:', lines)
       
     }
     result.push({
@@ -442,7 +422,6 @@ function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyl
       paraStyle: paraStyle
     })
   }
-  console.log('(00)-genTextBody-:new-切行结果-lines:result', result)
   return result
 }
 
@@ -613,7 +592,6 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList
           currentWidthList.push(useCharW)
           // const endWithLeftSymbol = checkLastIsLeftSymbol(currentLine)
           const endWithLeftSymbol1 = checkLastLeftSymbol(currentLine)
-          // console.log('(00)-wrapTextProfessional:-【endWithLeftSymbol】:', endWithLeftSymbol, endWithLeftSymbol1, currentLine)
           let newStr = ''
           let newStrWidth = 0
           if (endWithLeftSymbol1.match) {
@@ -630,7 +608,6 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList
         else {
           // const endWithLeftSymbol = checkLastIsLeftSymbol(currentLine)
           const endWithLeftSymbol1 = checkLastLeftSymbol(currentLine)
-          // console.log('(00)-wrapTextProfessional:-【endWithLeftSymbol】:', endWithLeftSymbol, endWithLeftSymbol1, currentLine)
           let newStr = ''
           let newStrWidth = 0
           if (endWithLeftSymbol1.match) {
@@ -838,242 +815,23 @@ function isRemainingALLEmpty(curIndex, charList ) {
   return true
 }
 
-// export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width) {
-//   if (!textBodyNode) return ''
-//   let text = ''
-
-//   // console.log('(00)-genTextBody-:textBodyNode:', textBodyNode)
-//   // // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText -textBodyNode:', textBodyNode)
-//   const pFontStyle = getTextByPathList(spNode, ['p:style', 'a:fontRef'])
-  
-//   const pNode = textBodyNode['a:p']
-//   // // console.log('(00)-genTextBody-:pNode:', pNode)
-//   const pNodes = pNode.constructor === Array ? pNode : [pNode]
-  
-//   const listTypes = []
-//   // console.log('(00)-genTextBody-:new---spNode:', spNode)
-//   // console.log('(00)-genTextBody-:new---pNodes:', pNodes)
-//   const getStyleInfo = {
-//     pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj
-//   }
-//   const cutLineResult = parsePPTTextToLines(spNode, width, getStyleInfo)
-//   // const fontSize = getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles, textBodyNode, pNode)
-//   // console.log('(00)-genTextBody-:new---切行结果----cutLineResult:', cutLineResult)
-//   for (let i = 0; i < cutLineResult.length;i++ ) {
-//     // console.log('(00)-genTextBody-:new---切行结果----cutLineResult:.paragraphHtml', cutLineResult[i].paragraphHtml)
-//     text += cutLineResult[i].paragraphHtml
-//   }
-//   if (text.length > 0) {
-//     // console.log('(00)-genTextBody-:new---切行结果----text', text)
-//     return text
-//   }
-  
-//   for (const pNode of pNodes) {
-//     // // console.log('(00)-genTextBody-:pNode:', pNode)
-//     let rNode = pNode['a:r']
-//     // console.log('(00)-genTextBody-:rNode:', rNode)
-//     let fldNode = pNode['a:fld']
-//     let brNode = pNode['a:br']
-//     if (rNode) {
-//       rNode = (rNode.constructor === Array) ? rNode : [rNode]
-
-//       if (fldNode) {
-//         fldNode = (fldNode.constructor === Array) ? fldNode : [fldNode]
-//         rNode = rNode.concat(fldNode)
-//       }
-//       if (brNode) {
-//         brNode = (brNode.constructor === Array) ? brNode : [brNode]
-//         brNode.forEach(item => item.type = 'br')
-  
-//         if (brNode.length > 1) brNode.shift()
-//         rNode = rNode.concat(brNode)
-//         rNode.sort((a, b) => {
-//           if (!a.attrs || !b.attrs) return true
-//           return a.attrs.order - b.attrs.order
-//         })
-//       }
-//     }
-
-//     // 增加整个textbody对齐参信息的获取-解决文本框对齐问题
-//     const lstStyle = textBodyNode['a:lstStyle']
-//     const lstStyle_align = getTextByPathList(lstStyle, ['a:lvl1pPr', 'attrs', 'algn'])
-//     const align = getHorizontalAlign(pNode, spNode, type, warpObj, lstStyle_align)
-//     const spacing = getParagraphSpacing(pNode)
-//     let styleText = `text-align: ${align};`
-//     if (spacing) {
-//       // // console.log('(00)=-=====>spacing.lineSpacing:', spacing.lineSpacing)
-//       if (spacing.lineSpacing) styleText += `line-height: ${spacing.lineSpacing};`
-//       if (spacing.spaceBefore) styleText += `margin-top: ${spacing.spaceBefore};`
-//       if (spacing.spaceAfter) styleText += `margin-bottom: ${spacing.spaceAfter};`
-//     }
-
-//     const listType = getListType(pNode)
-//     const listLevel = getListLevel(pNode)
-
-//     if (listType) {
-//       while (listTypes.length > listLevel + 1) {
-//         const closedListType = listTypes.pop()
-//         text += `</${closedListType}>`
-//       }
-
-//       if (listTypes[listLevel] === undefined) {
-//         text += `<${listType}>`
-//         listTypes[listLevel] = listType
-//       }
-//       else if (listTypes[listLevel] !== listType) {
-//         text += `</${listTypes[listLevel]}>`
-//         text += `<${listType}>`
-//         listTypes[listLevel] = listType
-//       }
-//       text += `<li style="${styleText}">`
-//     }
-//     else {
-//       while (listTypes.length > 0) {
-//         const closedListType = listTypes.pop()
-//         text += `</${closedListType}>`
-//       }
-//       text += `<p style="${styleText}">`
-//     }
-    
-//     if (!rNode) {
-//       text += genSpanElement(pNode, spNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
-//       // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText--!rNode', genSpanElement(pNode, spNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj))
-//     } 
-//     else {
-//       let prevStyleInfo = null
-//       let accumulatedText = ''
-//       let defaultLineHight = false
-//       let defaultLineHight11 = false
-//       const lineHight11 = rNode.length > 1
-//       for (const rNodeItem of rNode) {
-//         const styleInfo = getSpanStyleInfo(rNodeItem, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
-
-//         if (!prevStyleInfo || prevStyleInfo.styleText !== styleInfo.styleText || prevStyleInfo.hasLink !== styleInfo.hasLink || styleInfo.hasLink) {
-//           if (accumulatedText) {
-//             // const processedText = accumulatedText.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
-//             // const processedText = accumulatedText.replace(/\s/g, '&nbsp;')
-//             const processedText = accumulatedText
-//             text += `<span style="${prevStyleInfo.styleText}">${processedText}</span>`
-//             accumulatedText = ''
-//           }
-
-//           if (styleInfo.hasLink) {
-//             // const processedText = styleInfo.text.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
-//             // const processedText = styleInfo.text.replace(/\s/g, '&nbsp;')
-//             const processedText = styleInfo.text
-//             text += `<span style="${styleInfo.styleText}"><a href="${styleInfo.linkURL}" target="_blank">${processedText}</a></span>`
-//             prevStyleInfo = null
-//           } 
-//           else {
-//             prevStyleInfo = styleInfo
-//             accumulatedText = styleInfo.text
-//           }
-//         } 
-//         else accumulatedText += styleInfo.text
-
-//         // // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText -inFor:', accumulatedText)
-//         defaultLineHight = styleInfo.lineHight115
-//         defaultLineHight11 = styleInfo.lineHight11
-//       }
-//       if (accumulatedText && prevStyleInfo) {
-//         // const processedText = accumulatedText.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
-//         const processedText = accumulatedText
-//         text += `<span style="${prevStyleInfo.styleText}">${processedText}</span>`
-//       }
-//       if (abs) {
-//         defaultLineHight
-//         lineHight11
-//       }
-//       // if (defaultLineHight || !(spacing && spacing.lineSpacing)) {
-//       if (defaultLineHight) {
-//         text = addStyleToTag(text, 'span', 'line-height: 1.15')
-//         // console.log('(00)-getSpanStyleInfo----aRpr:-----accumulatedText-------------------------------------------------:', accumulatedText)
-//       }
-//       if (defaultLineHight11) {
-//         text = addStyleToTag(text, 'span', 'line-height: 1.1')
-//         // console.log('(00)-getSpanStyleInfo----aRpr:-----accumulatedText-------------------------------------------------:', accumulatedText)
-//       }
-//       // else if (lineHight11) {
-//       //   text = addStyleToTag(text, 'span', 'line-height: 1.1')
-//       // }
-
-//     }
-
-//     if (listType) text += '</li>'
-//     else text += '</p>'
-//   }
-//   while (listTypes.length > 0) {
-//     const closedListType = listTypes.pop()
-//     text += `</${closedListType}>`
-//   }
-//   const abs = false
-//   if (abs) {
-//     text = replaceMultiNbspBlocks(text)
-//     text = addStyleToSpans(text, ' line-height: inherit; vertical-align: middle;')
-//   }
-//   else {
-//     text = replaceNbspByLimit(text, 3)
-//   }
-//   // if (!text.includes('&nbsp;')) {
-//   //   text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; word-break: keep-all; white-space: nowrap')
-//   //   // // console.log('(00)-pptxtojson-genTextBody---text:', '有&nbsp;')
-//   // }
-//   // else {
-//   //   text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; word-break: keep-all;')
-//   //   // // console.log('(00)-pptxtojson-genTextBody---text:', '没有&nbsp;')
-//   // }
-//   if (!abs) {
-//     text = addStyleToTag(text, 'p', ' margin: 0; padding: 0;')
-//     // // console.log('(00)-pptxtojson-genTextBody---text:', text)
-//     const result = checkSpanLastCharIsTonePinyin(text)
-//     if (abs) {
-//       // // console.log('(00)---checkSpanLastCharIsTonePinyinresult:', result)
-//     }
-//     // // // console.log('(00)-dsfjslkjflas:-result:', result)
-//     if (result && result.length === 1 && result[0].isTonePinyin) {
-//       text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; line-break: strict; word-break: keep-all; overflow-wrap: break-word; white-space: nowrap')
-//       // // // console.log('(00)-dsfjslkjflas:-result:23412', '强制不换行')
-//     }
-//     else {
-//       // text = addStyleToTag(text, 'span', 'white-space: pre-wrap; line-height: 2')
-//       text = addStyleToTag(text, 'span', 'line-break: strict; overflow-wrap: break-word; white-space: pre-wrap')
-//     }
-//     // // // console.log('(00)-pptxtojson-genTextBody---text:---最终:', text)
-//   }
-//   // text = addStyleToTag(text, 'span', 'line-height: 1.15')
-//   // text = addStyleToTag(text, 'span', 'white-space: pre-wrap;')
-//   if (text.includes('&nbsp;')) {
-//     // console.log('(00)-------text:有&nbsp:', text)
-//     text = text.replace('&nbsp;', ' ')
-//   }
-
-//   text = replaceSpaceInUnderlineSpan(text)
-//   // if (!text.includes('line-height')) {
-//   //   text = addStyleToTag(text, 'span', 'line-height: 1.1')
-//   // }
-//   return text
-// }
-export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, useNewDeal, groupHierarchy) {
+export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, useNewDeal, anchorInfo) {
   if (!textBodyNode) return ''
   let text = ''
 
-  // console.log('(00)-genTextBody-:textBodyNode:', textBodyNode)
-  // // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText -textBodyNode:', textBodyNode)
   const pFontStyle = getTextByPathList(spNode, ['p:style', 'a:fontRef'])
   
   const pNode = textBodyNode['a:p']
-  // // console.log('(00)-genTextBody-:pNode:', pNode)
+  console.log('(00)-genTextBody-:[anchorInfo, pNode]:', anchorInfo, pNode)
+  const params = {
+    anchorInfo
+  }
+  console.log('(00)-pptxtojson-params0:', params, useNewDeal)
   const pNodes = pNode.constructor === Array ? pNode : [pNode]
   
   const listTypes = []
-  // console.log('(00)-genTextBody-:new---spNode:', spNode)
-  // console.log('(00)-genTextBody-:new---pNodes:', pNodes)
-  // console.log('(00)-pptx-TextEl--[pNodes]:', pNodes, pNodes.length)
   for (const pNode of pNodes) {
-    // console.log('(00)-pptx-TextEl--[pNodes--pNode]:', pNode)
-    // // console.log('(00)-genTextBody-:pNode:', pNode)
     let rNode = pNode['a:r']
-    // console.log('(00)-genTextBody-:rNode:', rNode)
     let fldNode = pNode['a:fld']
     let brNode = pNode['a:br']
     if (rNode) {
@@ -1137,9 +895,11 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
       styleText += `line-height: 1;`
     }
 
+    styleText += `justify-content: center;`
+    styleObj.justifyContent = 'center'
+
     const listType = getListType(pNode)
     const listLevel = getListLevel(pNode)
-    console.log('(00)-pptx-TextEl--[listType,pNode]:', listType, pNode)
     const paragraphInfo = {start: '', end: ''}
     if (listType) {
       while (listTypes.length > listLevel + 1) {
@@ -1172,15 +932,10 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
     
     if (!rNode) {
       text += genSpanElement(pNode, spNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
-      // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText--!rNode', genSpanElement(pNode, spNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj))
     } 
     else {
       let prevStyleInfo = null
       let accumulatedText = ''
-      let defaultLineHight = false
-      let defaultLineHight11 = false
-      const lineHight11 = rNode.length > 1
-      // console.log('(00)-pptxtojson-debug-[getStyleUseInfo]:--genTextBody[groupHierarchy]', spNode, groupHierarchy)
       if (useNewDeal) {
 
         let newDeal = false
@@ -1192,73 +947,26 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
           const cutLineResultNew = parsePPTTextToLinesNew(spNode, width)
           cutLineResultNew
 
-          groupHierarchy
-          
-          // console.log('(00)-pptxtojson-debug-[groupHierarchy]:', groupHierarchy)
-          // if (Array.isArray(groupHierarchy) && groupHierarchy.length > 0) {
-          //   console.log('(00)-pptxtojson-debug-[groupHierarchy]:', groupHierarchy)
-          // }
-          // else if (!Array.isArray(groupHierarchy)) {
-          //   console.log('(00)-pptxtojson-debug-[groupHierarchy]:', '非数组！！！', groupHierarchy)
-          // }
-          // const isInGroup = Array.isArray(groupHierarchy) && groupHierarchy.length > 0
           const isInGroup = warpObj.isInGroup
-          // console.log('(00)-pptxtojson-debug-[isInGroup]:', '组内元素', isInGroup)
-          // console.log('(00)-pptx-TextEl--[spNode]:', spNode)
-          const cutLineResult = parsePPTTextToLines(spNode, width, height, lineHeight, getStyleInfo, paragraphInfo, styleObj, isInGroup)
+          const cutLineResult = parsePPTTextToLines(spNode, width, height, lineHeight, getStyleInfo, paragraphInfo, styleObj, isInGroup, params)
           // const fontSize = getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles, textBodyNode, pNode)
-          // console.log('(00)-genTextBody-:new---切行结果----cutLineResultNew:', cutLineResultNew)
-          // console.log('(00)-genTextBody-:new---切行结果----cutLineResult:', cutLineResult)
           for (let i = 0; i < cutLineResult.length;i++ ) {
-          // // console.log('(00)-genTextBody-:new---切行结果----cutLineResult:.paragraphHtml', cutLineResult[i].paragraphHtml)
-          // console.log('(00)-genTextBody-:new---切行结果----cutLineResult:.lines', i, '-', cutLineResult[i].lines)
             text += cutLineResult[i].paragraphHtml
-            // console.log('(00)-pptx-TextEl--[cutLineResult[i]]:', i, cutLineResult[i])
             newDeal = true
           }
         }
 
         if (newDeal) {
-        // console.log('(00)-genTextBody-:new---切行结果----text:::', text)
         // return text
-          const abs = false
-          if (abs) {
-            text = replaceMultiNbspBlocks(text)
-            text = addStyleToSpans(text, ' line-height: inherit; vertical-align: middle;')
-          }
-          else {
-            text = replaceNbspByLimit(text, 3)
-          }
-          if (!abs) {
-            // text = addStyleToTag(text, 'p', ' margin: 0; padding: 0;')
-            // const result = checkSpanLastCharIsTonePinyin(text)
-            // if (abs) {
-            // // // console.log('(00)---checkSpanLastCharIsTonePinyinresult:', result)
-            //   result
-            // }
-            // if (result && result.length === 1 && result[0].isTonePinyin) {
-            //   text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; line-break: strict; word-break: keep-all; overflow-wrap: break-word; white-space: nowrap')
-            // }
-            // else {
-            //   text = addStyleToTag(text, 'span', 'line-break: strict; overflow-wrap: break-word; white-space: pre-wrap')
-            // }
-
-          }
-
+          text = replaceNbspByLimit(text, 3)
           if (text.includes('&nbsp;')) {
-          // console.log('(00)-------text:有&nbsp:', text)
             text = text.replace('&nbsp;', ' ')
           }
-          // console.log('(00)-genTextBody-:new---切行结果----text:::返回值------:', text)
-          // console.log('(00)-pptx-TextEl--[return text]:', text)
           return text
         }
       }
-      
       else {
-        //    
         for (const rNodeItem of rNode) {
-          // console.log('(00)-genTextBody-:new---切行结果----rNodeItem', rNodeItem)
           const styleInfo = getSpanStyleInfo(rNodeItem, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
 
           if (!prevStyleInfo || prevStyleInfo.styleText !== styleInfo.styleText || prevStyleInfo.hasLink !== styleInfo.hasLink || styleInfo.hasLink) {
@@ -1284,9 +992,6 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
           } 
           else accumulatedText += styleInfo.text
 
-          // // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText -inFor:', accumulatedText)
-          defaultLineHight = styleInfo.lineHight115
-          defaultLineHight11 = styleInfo.lineHight11
         }
         if (accumulatedText && prevStyleInfo) {
         // const processedText = accumulatedText.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
@@ -1294,25 +999,6 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
           text += `<span style="${prevStyleInfo.styleText}">${processedText}</span>`
         }
       }
-
-      
-
-
-      if (abs) {
-        defaultLineHight
-        lineHight11
-      }
-      // if (defaultLineHight || !(spacing && spacing.lineSpacing)) {
-      if (defaultLineHight) {
-        text = addStyleToTag(text, 'span', 'line-height: 1.15')
-      }
-      if (defaultLineHight11) {
-        text = addStyleToTag(text, 'span', 'line-height: 1.1')
-      }
-      // else if (lineHight11) {
-      //   text = addStyleToTag(text, 'span', 'line-height: 1.1')
-      // }
-
     }
 
     if (listType) text += '</li>'
@@ -1322,76 +1008,41 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
     const closedListType = listTypes.pop()
     text += `</${closedListType}>`
   }
-  const abs = false
-  if (abs) {
-    text = replaceMultiNbspBlocks(text)
-    text = addStyleToSpans(text, ' line-height: inherit; vertical-align: middle;')
+
+  text = replaceNbspByLimit(text, 3)
+  text = addStyleToTag(text, 'p', ' margin: 0; padding: 0;')
+  const result = checkSpanLastCharIsTonePinyin(text)
+  if (result && result.length === 1 && result[0].isTonePinyin) {
+    text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; line-break: strict; word-break: keep-all; overflow-wrap: break-word; white-space: nowrap')
   }
   else {
-    text = replaceNbspByLimit(text, 3)
-  }
-  // if (!text.includes('&nbsp;')) {
-  //   text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; word-break: keep-all; white-space: nowrap')
-  //   // // console.log('(00)-pptxtojson-genTextBody---text:', '有&nbsp;')
-  // }
-  // else {
-  //   text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; word-break: keep-all;')
-  //   // // console.log('(00)-pptxtojson-genTextBody---text:', '没有&nbsp;')
-  // }
-  if (!abs) {
-    text = addStyleToTag(text, 'p', ' margin: 0; padding: 0;')
-    // // console.log('(00)-pptxtojson-genTextBody---text:', text)
-    const result = checkSpanLastCharIsTonePinyin(text)
-    if (abs) {
-      // // console.log('(00)---checkSpanLastCharIsTonePinyinresult:', result)
-    }
-    // // // console.log('(00)-dsfjslkjflas:-result:', result)
-    if (result && result.length === 1 && result[0].isTonePinyin) {
-      text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; line-break: strict; word-break: keep-all; overflow-wrap: break-word; white-space: nowrap')
-      // // // console.log('(00)-dsfjslkjflas:-result:23412', '强制不换行')
-    }
-    else {
-      // text = addStyleToTag(text, 'span', 'white-space: pre-wrap; line-height: 2')
-      text = addStyleToTag(text, 'span', 'line-break: strict; overflow-wrap: break-word; white-space: pre-wrap')
-    }
-    // // // console.log('(00)-pptxtojson-genTextBody---text:---最终:', text)
+    text = addStyleToTag(text, 'span', 'line-break: strict; overflow-wrap: break-word; white-space: pre-wrap')
   }
   // text = addStyleToTag(text, 'span', 'line-height: 1.15')
   // text = addStyleToTag(text, 'span', 'white-space: pre-wrap;')
   if (text.includes('&nbsp;')) {
-    // console.log('(00)-------text:有&nbsp:', text)
     text = text.replace('&nbsp;', ' ')
   }
 
   text = replaceSpaceInUnderlineSpan(text)
-  // if (!text.includes('line-height')) {
-  //   text = addStyleToTag(text, 'span', 'line-height: 1.1')
-  // }
-  // console.log('(00)-genTextBody-:new---切行结果----text:::返回值------:--!!!!!', text)
+
   return text
 }
 
-export function genTextBodyFullText(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, useNewDeal, groupHierarchy) {
+export function genTextBodyFullText(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, useNewDeal) {
   if (!textBodyNode) return ''
   let text = ''
   let allLines = []
 
-  // console.log('(00)-genTextBody-:textBodyNode:', textBodyNode)
-  // // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText -textBodyNode:', textBodyNode)
   const pFontStyle = getTextByPathList(spNode, ['p:style', 'a:fontRef'])
   
   const pNode = textBodyNode['a:p']
-  // // console.log('(00)-genTextBody-:pNode:', pNode)
   const pNodes = pNode.constructor === Array ? pNode : [pNode]
   
   const listTypes = []
-  // console.log('(00)-genTextBody-:new---spNode:', spNode)
-  // console.log('(00)-genTextBody-:new---pNodes:', pNodes)
   
   for (const pNode of pNodes) {
-    // // console.log('(00)-genTextBody-:pNode:', pNode)
     let rNode = pNode['a:r']
-    // console.log('(00)-genTextBody-:rNode:', rNode)
     let fldNode = pNode['a:fld']
     let brNode = pNode['a:br']
     if (rNode) {
@@ -1486,15 +1137,10 @@ export function genTextBodyFullText(textBodyNode, spNode, slideLayoutSpNode, sli
     
     if (!rNode) {
       text += genSpanElement(pNode, spNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
-      // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText--!rNode', genSpanElement(pNode, spNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj))
     } 
     else {
       let prevStyleInfo = null
       let accumulatedText = ''
-      let defaultLineHight = false
-      let defaultLineHight11 = false
-      const lineHight11 = rNode.length > 1
-      // console.log('(00)-pptxtojson-debug-[getStyleUseInfo]:--genTextBody[groupHierarchy]', spNode, groupHierarchy)
       if (useNewDeal) {
 
         let newDeal = false
@@ -1505,26 +1151,10 @@ export function genTextBodyFullText(textBodyNode, spNode, slideLayoutSpNode, sli
           }
           const cutLineResultNew = parsePPTTextToLinesNew(spNode, width)
           cutLineResultNew
-
-          groupHierarchy
-          
-          // console.log('(00)-pptxtojson-debug-[groupHierarchy]:', groupHierarchy)
-          // if (Array.isArray(groupHierarchy) && groupHierarchy.length > 0) {
-          //   console.log('(00)-pptxtojson-debug-[groupHierarchy]:', groupHierarchy)
-          // }
-          // else if (!Array.isArray(groupHierarchy)) {
-          //   console.log('(00)-pptxtojson-debug-[groupHierarchy]:', '非数组！！！', groupHierarchy)
-          // }
-          // const isInGroup = Array.isArray(groupHierarchy) && groupHierarchy.length > 0
           const isInGroup = warpObj.isInGroup
-          // console.log('(00)-pptxtojson-debug-[isInGroup]:', '组内元素', isInGroup)
           const cutLineResult = parsePPTTextToLines(spNode, width, height, lineHeight, getStyleInfo, paragraphInfo, styleObj, isInGroup)
           // const fontSize = getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles, textBodyNode, pNode)
-          // console.log('(00)-genTextBody-:new---切行结果----cutLineResultNew:', cutLineResultNew)
-          // console.log('(00)-genTextBody-:new---切行结果----cutLineResult:', cutLineResult)
           for (let i = 0; i < cutLineResult.length;i++ ) {
-          // // console.log('(00)-genTextBody-:new---切行结果----cutLineResult:.paragraphHtml', cutLineResult[i].paragraphHtml)
-          // console.log('(00)-genTextBody-:new---切行结果----cutLineResult:.lines', i, '-', cutLineResult[i].lines)
             text += cutLineResult[i].paragraphHtml
             allLines = [...allLines, cutLineResult[i].lines]
             newDeal = true
@@ -1532,8 +1162,6 @@ export function genTextBodyFullText(textBodyNode, spNode, slideLayoutSpNode, sli
         }
 
         if (newDeal) {
-        // console.log('(00)-genTextBody-:new---切行结果----text:::', text)
-        // return text
           const abs = false
           if (abs) {
             text = replaceMultiNbspBlocks(text)
@@ -1542,27 +1170,10 @@ export function genTextBodyFullText(textBodyNode, spNode, slideLayoutSpNode, sli
           else {
             text = replaceNbspByLimit(text, 3)
           }
-          if (!abs) {
-            // text = addStyleToTag(text, 'p', ' margin: 0; padding: 0;')
-            // const result = checkSpanLastCharIsTonePinyin(text)
-            // if (abs) {
-            // // // console.log('(00)---checkSpanLastCharIsTonePinyinresult:', result)
-            //   result
-            // }
-            // if (result && result.length === 1 && result[0].isTonePinyin) {
-            //   text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; line-break: strict; word-break: keep-all; overflow-wrap: break-word; white-space: nowrap')
-            // }
-            // else {
-            //   text = addStyleToTag(text, 'span', 'line-break: strict; overflow-wrap: break-word; white-space: pre-wrap')
-            // }
-
-          }
 
           if (text.includes('&nbsp;')) {
-          // console.log('(00)-------text:有&nbsp:', text)
             text = text.replace('&nbsp;', ' ')
           }
-          // console.log('(00)-genTextBody-:new---切行结果----text:::返回值------:', text)
           return allLines
         }
       }
@@ -1570,7 +1181,6 @@ export function genTextBodyFullText(textBodyNode, spNode, slideLayoutSpNode, sli
       else {
         //    
         for (const rNodeItem of rNode) {
-          // console.log('(00)-genTextBody-:new---切行结果----rNodeItem', rNodeItem)
           const styleInfo = getSpanStyleInfo(rNodeItem, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
 
           if (!prevStyleInfo || prevStyleInfo.styleText !== styleInfo.styleText || prevStyleInfo.hasLink !== styleInfo.hasLink || styleInfo.hasLink) {
@@ -1596,9 +1206,6 @@ export function genTextBodyFullText(textBodyNode, spNode, slideLayoutSpNode, sli
           } 
           else accumulatedText += styleInfo.text
 
-          // // console.log('(00)-pptxtojson-genTextBody---text:--accumulatedText -inFor:', accumulatedText)
-          defaultLineHight = styleInfo.lineHight115
-          defaultLineHight11 = styleInfo.lineHight11
         }
         if (accumulatedText && prevStyleInfo) {
         // const processedText = accumulatedText.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
@@ -1606,24 +1213,6 @@ export function genTextBodyFullText(textBodyNode, spNode, slideLayoutSpNode, sli
           text += `<span style="${prevStyleInfo.styleText}">${processedText}</span>`
         }
       }
-
-      
-
-
-      if (abs) {
-        defaultLineHight
-        lineHight11
-      }
-      // if (defaultLineHight || !(spacing && spacing.lineSpacing)) {
-      if (defaultLineHight) {
-        text = addStyleToTag(text, 'span', 'line-height: 1.15')
-      }
-      if (defaultLineHight11) {
-        text = addStyleToTag(text, 'span', 'line-height: 1.1')
-      }
-      // else if (lineHight11) {
-      //   text = addStyleToTag(text, 'span', 'line-height: 1.1')
-      // }
 
     }
 
@@ -1642,44 +1231,24 @@ export function genTextBodyFullText(textBodyNode, spNode, slideLayoutSpNode, sli
   else {
     text = replaceNbspByLimit(text, 3)
   }
-  // if (!text.includes('&nbsp;')) {
-  //   text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; word-break: keep-all; white-space: nowrap')
-  //   // // console.log('(00)-pptxtojson-genTextBody---text:', '有&nbsp;')
-  // }
-  // else {
-  //   text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; word-break: keep-all;')
-  //   // // console.log('(00)-pptxtojson-genTextBody---text:', '没有&nbsp;')
-  // }
   if (!abs) {
     text = addStyleToTag(text, 'p', ' margin: 0; padding: 0;')
-    // // console.log('(00)-pptxtojson-genTextBody---text:', text)
     const result = checkSpanLastCharIsTonePinyin(text)
     if (abs) {
-      // // console.log('(00)---checkSpanLastCharIsTonePinyinresult:', result)
+      //
     }
-    // // // console.log('(00)-dsfjslkjflas:-result:', result)
     if (result && result.length === 1 && result[0].isTonePinyin) {
       text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; line-break: strict; word-break: keep-all; overflow-wrap: break-word; white-space: nowrap')
-      // // // console.log('(00)-dsfjslkjflas:-result:23412', '强制不换行')
     }
     else {
-      // text = addStyleToTag(text, 'span', 'white-space: pre-wrap; line-height: 2')
       text = addStyleToTag(text, 'span', 'line-break: strict; overflow-wrap: break-word; white-space: pre-wrap')
     }
-    // // // console.log('(00)-pptxtojson-genTextBody---text:---最终:', text)
   }
-  // text = addStyleToTag(text, 'span', 'line-height: 1.15')
-  // text = addStyleToTag(text, 'span', 'white-space: pre-wrap;')
   if (text.includes('&nbsp;')) {
-    // console.log('(00)-------text:有&nbsp:', text)
     text = text.replace('&nbsp;', ' ')
   }
 
   text = replaceSpaceInUnderlineSpan(text)
-  // if (!text.includes('line-height')) {
-  //   text = addStyleToTag(text, 'span', 'line-height: 1.1')
-  // }
-  // console.log('(00)-genTextBody-:new---切行结果----text:::返回值------:--!!!!!', text)
   return text
 }
 
@@ -1715,7 +1284,6 @@ function replaceSpaceInUnderlineSpan(htmlStr) {
     }
   })
 
-  // console.log('(00)-replaceSpaceInUnderlineSpan--tempContainer.innerHTML:', tempContainer.innerHTML)
   // 5. 返回处理后的HTML字符串
   return tempContainer.innerHTML
 }
@@ -1866,8 +1434,6 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   if (lvlNode !== undefined) lvl = parseInt(lvlNode) + 1
 
   let text = node['a:t']
-  // console.log('(00)-pptxtojson-text====node属性:', text, node['a:rPr'])
-  // console.log('(00)-pptxtojson-text====node:', text, node['a:rPr']['a:highlight'])
   if (typeof text !== 'string') text = getTextByPathList(node, ['a:fld', 'a:t'])
   // if (typeof text !== 'string') text = '&nbsp;'
   if (typeof text !== 'string') text = ' '
@@ -1898,8 +1464,6 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   //       w = lnInfo['attrs']['w'] * RATIO_EMUs_Points
   //     }
   //     const outLineClr = getSolidFill(lnInfo['a:solidFill'], undefined, undefined, warpObj)
-  //     console.log('(00)-pptxtojson-text====node属性a:ln:----outLineClr:', text, w, outLineClr, shadow)
-  //     console.log('(00)-pptxtojson-text====node属性[shadow]:', shadow)
   //     // styleText += ``
   //   }
   // }
@@ -1973,21 +1537,6 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   const linkID = getTextByPathList(node, ['a:rPr', 'a:hlinkClick', 'attrs', 'r:id'])
   const hasLink = linkID && warpObj['slideResObj'][linkID]
 
-  const aRpr = getTextByPathList(node, ['a:rPr', 'attrs'])
-  let lineHight115
-  let lineHight11
-  if (aRpr && aRpr.b) {
-    // lineHight115 = aRpr.sz === '2800' && text.length > 40 && aRpr.b === '1'
-    lineHight115 = aRpr.sz === '2800' && aRpr.b === '1' && text.length > 40
-    lineHight11 = lineHight115 || aRpr.sz === '2800' && aRpr.b === '1' && text.length > 20
-    // lineHight115 = aRpr.b === '1'
-    // lineHight115 = aRpr.sz === '2800' 
-  }
-
-  // console.log('(00)-pptxtojson-getBackGround:styleText:', styleText)
-  console.log('(00)-pptxtojson-text====node属性[shadow]--styleText:', styleText)
-
-
   const styleObj = {
     fontSize: fontSize.replace('pt', 'px'),
     color: !fontColor.colors ? fontColor : '',
@@ -2008,7 +1557,5 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
     text,
     hasLink,
     linkURL: hasLink ? warpObj['slideResObj'][linkID]['target'] : null,
-    lineHight115,
-    lineHight11
   }
 }
