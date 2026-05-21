@@ -769,12 +769,109 @@ async function processMathNode(node, warpObj, source) {
     text = genTextBody(sp['p:txBody'], sp, undefined, undefined, undefined, warpObj)
   }
 
+  let effectData
+  console.log('(00)-ppt-math-el:mathElement-[node]:', node) 
+  const prNode = getTextByPathList(node, ['mc:Choice', 'p:sp'])
+  console.log('(00)-ppt-math-el:mathElement-[prNode]:', prNode) 
+  const propertySettings = {}
+  {
+    const data = {}
+    // const propertySettings = {}
+    let offectObj = {}
+    // const defaultStyleObj = getTextByPathList(prNode, ['p:style'])
+    // const defaultEffectRef = getTextByPathList(prNode, ['p:style', 'a:effectRef'])
+
+    let shadow
+    const outerShdwNode = getTextByPathList(prNode, ['p:spPr', 'a:effectLst', 'a:outerShdw'])
+    if (outerShdwNode) shadow = getShadow(outerShdwNode, warpObj)
+
+    let glow
+    const glowNode = getTextByPathList(prNode, ['p:spPr', 'a:effectLst', 'a:glow'])
+    if (glowNode) glow = getGlow(glowNode, warpObj)
+
+    // 获取倒影配置
+    let reflection
+    const reflectionNode = getTextByPathList(prNode, ['p:spPr', 'a:effectLst', 'a:reflection'])
+    const effectLstNode = getTextByPathList(prNode, ['p:spPr', 'a:effectLst'])
+    console.log('(00)-ppt-math-el:mathElement-[reflectionNode, effectLstNode]:', reflectionNode, effectLstNode) 
+    if (effectLstNode && !reflectionNode) {
+    //
+    }
+    else if (!effectLstNode && !reflectionNode) {
+      const effectStyleLst = warpObj['themeContent']['a:theme']['a:themeElements']['a:fmtScheme']['a:effectStyleLst']
+      const idx = getTextByPathList(prNode, ['p:style', 'a:effectRef', 'attrs', 'idx'])
+      const effectStyleList = getTextByPathList(effectStyleLst, ['a:effectStyle'])
+      const lnIdx = Number(idx) - 1
+      if (lnIdx >= 0) {
+        const targetEffect = effectStyleList[Number(lnIdx)]
+        // const defaultReflection = getTextByPathList(targetEffect, ['a:effectLst', 'a:reflection'])
+        const defaultReflection = getTextByPathList(targetEffect, ['a:effectLst'])
+        offectObj = {...offectObj, ...defaultReflection}
+        if (targetEffect) {
+          reflection = defaultReflection
+        }
+      }
+    }
+    else if (reflectionNode) {
+      reflection = reflectionNode
+      reflection
+    }
+    if (reflection) {
+      propertySettings['a:effectLst'] = offectObj
+    }
+    console.log('(00)-ppt-math-el:mathElement-[propertySettings]:', propertySettings) 
+
+    let softEdge
+    const softEdgeNode = getTextByPathList(prNode, ['p:spPr', 'a:effectLst', 'a:softEdge'])
+    if (softEdgeNode) softEdge = getSoftEdge(softEdgeNode)
+
+    // const vAlign = getVerticalAlign(prNode, slideLayoutSpNode, slideMasterSpNode, type)
+
+    // console.log('(00)-pptxtosjson-bodyPrValueAttrs:', bodyPrValueAttrs)
+    // const vertValue = getTextByPathList(prNode, ['p:txBody', 'a:bodyPr', 'attrs', 'vert'])
+    // let textDirectionValue
+    // console.log('(00)-pptxtosjson-bodyPrValueAttrs:', vertValue, anchorValue, anchorCtrValue)
+    // vertValue ? textDirectionValue = vertValue : ''
+    // const vertAttrs = getTextByPathList(prNode, ['p:txBody', 'a:bodyPr', 'attrs'])
+    // const isVertical = getTextByPathList(prNode, ['p:txBody', 'a:bodyPr', 'attrs', 'vert']) === 'eaVert'
+    if (shadow) data.shadow = shadow
+    if (glow) data.glow = glow
+    if (softEdge) data.softEdge = softEdge
+    // if (autoFit) data.autoFit = autoFit
+    // if (link) data.link = link
+    console.log('(00)-ppt-math-el:data:', data)
+    effectData = data
+  }
+  const { borderColor, borderWidth, borderType, strokeDasharray, borderColorObj } = getBorder(prNode, undefined, warpObj)
+  strokeDasharray
+  const spPr = getTextByPathList(prNode, ['p:spPr'])
+  console.log('(00)-ppt-math-el:mathElement-[spPr]:', spPr)
+  console.log('(00)-ppt-math-el:mathElement-[borderColor, borderWidth, borderType, borderColorObj]:', borderColor, borderWidth, borderType, borderColorObj)
+  console.log('(00)-ppt-math-el:mathElement-[borderWidth]:', borderWidth)
+  console.log('(00)-ppt-math-el:mathElement-[effectData]:', effectData)
+
+  let heightMultiple = 1
+  
+  if (propertySettings) {
+    const usePropertySettings = JSON.parse(JSON.stringify(propertySettings))
+    // const useEffectData = JSON.parse(JSON.stringify(effectData))
+    const effectLst = usePropertySettings['a:effectLst']
+    // const glow = useEffectData['glow']
+    // console.log('(00)-ppt-math-el:mathElement-[propertySettings]:', propertySettings)
+    // console.log('(00)-ppt-math-el:mathElement-[effectLst]:', effectLst)
+    if (effectLst) {
+      heightMultiple = 2
+    }
+  }
+  // console.log('(00)-ppt-math-el:mathElement-[heightMultiple]:', heightMultiple)
+
   return {
     type: 'math',
+    propertySettings,
     top,
     left,
     width, 
-    height,
+    height: height * heightMultiple,
     latex,
     picBase64,
     text,
@@ -1058,8 +1155,20 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
     anchorValue,
     anchorCtrValue
   }
-  if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, !isShape, anchorInfo)
-  // if (node['p:txBody']) fullText = genTextBodyFullText(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, true)
+  const isVertical1 = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert']) === 'eaVert'
+  // console.log('(00)-pptxtosjson-bodyPrValueAttrs:', bodyPrValueAttrs)
+  const vertValue = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert'])
+  let textDirectionValue
+  console.log('(00)-pptxtosjson-bodyPrValueAttrs:', vertValue, anchorValue, anchorCtrValue)
+  vertValue ? textDirectionValue = vertValue : ''
+  const paramsObj = {
+    isVertical: isVertical1,
+    textDirectionValue,
+    isUseNewDeal: !isShape,
+    width,
+    height,
+  }
+  if (node['p:txBody']) content = genTextBody(node['p:txBody'], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj, paramsObj)
   fullText = []
   const propertySettings = {}
   let offectObj = {}
@@ -1110,11 +1219,6 @@ async function genShape(node, slideLayoutSpNode, slideMasterSpNode, name, id, ty
 
   const vAlign = getVerticalAlign(node, slideLayoutSpNode, slideMasterSpNode, type)
 
-  // console.log('(00)-pptxtosjson-bodyPrValueAttrs:', bodyPrValueAttrs)
-  const vertValue = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert'])
-  let textDirectionValue
-  console.log('(00)-pptxtosjson-bodyPrValueAttrs:', vertValue, anchorValue, anchorCtrValue)
-  vertValue ? textDirectionValue = vertValue : ''
   // const vertAttrs = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs'])
   const isVertical = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert']) === 'eaVert'
   const autoFit = getTextAutoFit(node, slideLayoutSpNode, slideMasterSpNode)
@@ -1211,6 +1315,12 @@ async function processPicNode(node, warpObj, source) {
   // const targetInfo = getTextByPathList(node, ['p:blipFill', 'a:blip'])
   // const targetInfo1 = getTextByPathList(node, ['p:blipFill', 'a:blip', 'a:alphaModFix'])
   // const targetInfo2 = getTextByPathList(node, ['p:blipFill', 'a:blip', 'a:lum'])
+
+  const fill = await getShapeFill(node, warpObj, source, [])
+  if (fill && fill.type === 'gradient') dealGradientFill(fill)
+  console.log('(00)-ppt-image-el:ImageElement-[fill]:', fill)
+
+
   const opacity = getPicFillOpacity( node['p:blipFill'])
   // const targetInfo1 = getTextByPathList(node, ['p:blipFill', 'a:blip', 'a:alphaModFix', 'attrs', 'amt'])
   const contrastInfo = getTextByPathList(node, ['p:blipFill', 'a:blip', 'a:lum', 'attrs', 'contrast'])
@@ -1227,6 +1337,64 @@ async function processPicNode(node, warpObj, source) {
   const spPrNode = getTextByPathList(node, ['p:spPr'])
   console.log('(00)-ppt-image-el:glowNode:', spPrNode)
   console.log('(00)-ppt-image-el:node:', node)
+  
+  console.log('(00)-ppt-image-el:3DInfo-[p:spPr]:', spPrNode)
+
+  const sp3dNode = getTextByPathList(node, ['p:spPr', 'a:sp3d'])
+  const sp3dAttrs = getTextByPathList(node, ['p:spPr', 'a:sp3d', 'attrs'])
+  const sp3dContourNode = getTextByPathList(node, ['p:spPr', 'a:sp3d', 'a:contourClr'])
+  const sp3dExtrusionNode = getTextByPathList(node, ['p:spPr', 'a:sp3d', 'a:extrusionClr'])
+  const scene3dNode = getTextByPathList(node, ['p:spPr', 'a:scene3d'])
+  // getSolidFill(tbl_bgFillschemeClr, undefined, undefined, warpObj)
+
+  console.log('(00)-ppt-image-el:3DInfo-[a:sp3d]:', sp3dNode)
+  console.log('(00)-ppt-image-el:3DInfo-[a:scene3d]:', scene3dNode)
+  
+  // let sp3dPr = {}
+  let extrusionHValue
+  let contourWValue
+  let sp3dExtrusion
+  let sp3dContour
+  let sp3dPrstMaterial
+  console.log('(00)-ppt-image-el:3DInfo-[a:sp3d]-[sp3dAttrs]:', sp3dAttrs)
+  if (sp3dAttrs) {
+    const {extrusionH, contourW, prstMaterial} = sp3dAttrs
+    console.log('(00)-ppt-image-el:3DInfo-[a:sp3d]-[extrusionH, contourW, prstMaterial]:', extrusionH, contourW, prstMaterial)
+    if (extrusionH) extrusionHValue = numberToFixed(parseInt(extrusionH) * RATIO_EMUs_Points)
+    if (contourW) contourWValue = numberToFixed(parseInt(contourW) * RATIO_EMUs_Points)
+    sp3dPrstMaterial = prstMaterial 
+    console.log('(00)-ppt-image-el:3DInfo-[a:sp3d]-[extrusionHValue, contourWValue]:', extrusionHValue, contourWValue)
+  }
+
+  console.log('(00)-ppt-image-el:3DInfo-[a:sp3d]-[sp3dContourNode]:', sp3dContourNode)
+  console.log('(00)-ppt-image-el:3DInfo-[a:sp3d]-[sp3dExtrusionNode]:', sp3dExtrusionNode)
+
+  // extrusionH="76200" contourW="63500" prstMaterial="dkEdge"
+
+  if (sp3dContourNode) {
+    sp3dContour = getSolidFill(sp3dContourNode, undefined, undefined, warpObj)
+  }
+  if (sp3dExtrusionNode) {
+    sp3dExtrusion = getSolidFill(sp3dExtrusionNode, undefined, undefined, warpObj)
+  }
+  const sp3dObj = {
+    extrusionHValue,
+    contourWValue,
+    sp3dExtrusion,
+    sp3dContour,
+    sp3dPrstMaterial,
+  }
+  const sp3dObj1 = {
+    extrusion: {
+      color: sp3dExtrusion,
+      height: extrusionHValue
+    },
+    contour: {
+      color: sp3dContour,
+      width: contourWValue
+    }
+  }
+  console.log('(00)-ppt-image-el:3DInfo-[a:sp3d]-[sp3dObj,sp3dObj1]:', sp3dObj, sp3dObj1)
   
   let effectData
   {
@@ -1295,6 +1463,11 @@ async function processPicNode(node, warpObj, source) {
     console.log('(00)-ppt-image-el:data:', data)
     effectData = data
   }
+  const { borderColor, borderWidth, borderType, strokeDasharray, borderColorObj } = getBorder(node, undefined, warpObj)
+  const spPr = getTextByPathList(node, ['p:spPr'])
+  console.log('(00)-ppt-image-el:ImageElement-[spPr]:', spPr)
+  console.log('(00)-ppt-image-el:ImageElement-[borderColor, borderWidth, borderType, borderColorObj]:', borderColor, borderWidth, borderType, borderColorObj)
+  console.log('(00)-ppt-image-el:ImageElement-[borderWidth]:', borderWidth)
 
   const imgName = resObj[rid]['target']
   const imgFileExt = extractFileExtension(imgName).toLowerCase()
@@ -1357,6 +1530,13 @@ async function processPicNode(node, warpObj, source) {
   if (videoNode && !isVdeoLink) {
     return {
       type: 'video',
+      blipFillPr,
+      fill,
+      borderColor,
+      borderWidth,
+      borderType,
+      borderColorObj,
+      ...effectData,
       top,
       left,
       width, 
@@ -1369,6 +1549,13 @@ async function processPicNode(node, warpObj, source) {
   if (videoNode && isVdeoLink) {
     return {
       type: 'video',
+      blipFillPr,
+      fill,
+      borderColor,
+      borderWidth,
+      borderType,
+      borderColorObj,
+      ...effectData,
       top,
       left,
       width, 
@@ -1412,13 +1599,18 @@ async function processPicNode(node, warpObj, source) {
     if (geom !== 'custom') geom = `custom:${geom}`
   }
 
-  const { borderColor, borderWidth, borderType, strokeDasharray } = getBorder(node, undefined, warpObj)
+  // const { borderColor, borderWidth, borderType, strokeDasharray, borderColorObj } = getBorder(node, undefined, warpObj)
+  // const spPr = getTextByPathList(node, ['p:spPr'])
+  // console.log('(00)-ppt-image-el:ImageElement-[spPr]:', spPr)
+  // console.log('(00)-ppt-image-el:ImageElement-[borderColor, borderWidth, borderType, borderColorObj]:', borderColor, borderWidth, borderType, borderColorObj)
 
   const filters = getPicFilters(node['p:blipFill'])
 
   const imageData = {
     type: 'image',
     blipFillPr,
+    fill,
+    borderColorObj,
     ...effectData,
     top,
     left,
@@ -1436,6 +1628,8 @@ async function processPicNode(node, warpObj, source) {
     borderType,
     borderStrokeDasharray: strokeDasharray,
   }
+  console.log('(00)-ppt-image-el:ImageElement-[imageData]:', imageData)
+
 
   if (filters) imageData.filters = filters
   if (link) imageData.link = link
@@ -1476,6 +1670,10 @@ async function genTable(node, warpObj) {
 
   const getTblPr = getTextByPathList(node, ['a:graphic', 'a:graphicData', 'a:tbl', 'a:tblPr'])
   let getColsGrid = getTextByPathList(node, ['a:graphic', 'a:graphicData', 'a:tbl', 'a:tblGrid', 'a:gridCol'])
+  const getTblGrid = getTextByPathList(node, ['a:graphic', 'a:graphicData', 'a:tbl', 'a:tblGrid'])
+  console.log('(00)-tableEl-text-[useNewDeal]-[parsePPTTextToLines]-[ok]- width, height:', width, height)
+  console.log('(00)-tableEl-text-[useNewDeal]-[parsePPTTextToLines]-[ok]-getTblGrid:', getTblGrid)
+  console.log('(00)-tableEl-text-[useNewDeal]-[parsePPTTextToLines]-[ok]-getColsGrid:', getColsGrid)
   if (getColsGrid.constructor !== Array) getColsGrid = [getColsGrid]
 
   const colWidths = []
@@ -1486,6 +1684,7 @@ async function genTable(node, warpObj) {
       colWidths.push(colWidth)
     }
   }
+  console.log('(00)-tableEl-text-[useNewDeal]-[parsePPTTextToLines]-[ok]-colWidths:', colWidths)
 
   const firstRowAttr = getTblPr['attrs'] ? getTblPr['attrs']['firstRow'] : undefined
   const firstColAttr = getTblPr['attrs'] ? getTblPr['attrs']['firstCol'] : undefined
@@ -1549,6 +1748,8 @@ async function genTable(node, warpObj) {
     const rowHeightParam = getTextByPathList(trNodes[i], ['attrs', 'h']) || 0
     const rowHeight = parseInt(rowHeightParam) * RATIO_EMUs_Points
     rowHeights.push(rowHeight)
+    const curWidth = colWidths[i]
+    console.log('(00)-tableEl-text-[useNewDeal]-[parsePPTTextToLines]-[ok]-curWidth,rowHeight:', curWidth, rowHeight)
 
     const {
       fillColor,
@@ -1597,9 +1798,29 @@ async function genTable(node, warpObj) {
             a_sorce = 'a:nwCell'
           }
         }
-        const text = genTextBody(tcNode['a:txBody'], tcNode, undefined, undefined, undefined, warpObj)
+
+        const tcPrNode = getTextByPathList(tcNode['a:tcPr'], ['attrs', 'vert'])
+        const tcPrVertNode = getTextByPathList(tcNode['a:tcPr'], ['attrs', 'vert'])
+        // const isVertical = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert']) === 'eaVert'
+        const isVertical = tcPrVertNode ? tcPrVertNode.includes('vert') || tcPrVertNode.includes('Vert') : false
+        let textDirectionValue
+        
+        if (tcPrVertNode) {
+          console.log('(00)-tableEl-text-[tcPrNode]:', tcPrNode)
+          console.log('(00)-tableEl-text-[tcPrNode]-[tcPrVertNode]:', tcPrVertNode)
+          textDirectionValue = tcPrVertNode
+        }
+        const paramsObj = {
+          isVertical,
+          textDirectionValue,
+          isUseNewDeal: false,
+          width: curWidth,
+          height: rowHeight,
+        }
+        const text = genTextBody(tcNodes['a:txBody'], tcNodes, undefined, undefined, undefined, warpObj, paramsObj)
+        // const text = genTextBody(tcNode['a:txBody'], tcNode, undefined, undefined, undefined, warpObj)
         const cell = await getTableCellParams(tcNode, thisTblStyle, a_sorce, warpObj)
-        const td = { text }
+        const td = { text, isVertical, textDirectionValue }
         if (cell.rowSpan) td.rowSpan = cell.rowSpan
         if (cell.colSpan) td.colSpan = cell.colSpan
         if (cell.vMerge) td.vMerge = cell.vMerge
@@ -1610,6 +1831,7 @@ async function genTable(node, warpObj) {
         if (cell.borders) td.borders = cell.borders
 
         tr.push(td)
+        console.log('(00)-tableEl-text-[cellData]-td:', td)
       }
     } 
     else {
@@ -1629,9 +1851,29 @@ async function genTable(node, warpObj) {
         a_sorce = 'a:lastCol'
       }
 
-      const text = genTextBody(tcNodes['a:txBody'], tcNodes, undefined, undefined, undefined, warpObj)
+      const tcPrNode = getTextByPathList(tcNodes['a:tcPr'], ['attrs', 'vert'])
+      const tcPrVertNode = getTextByPathList(tcNodes['a:tcPr'], ['attrs', 'vert'])
+      const isVertical = tcPrVertNode ? tcPrVertNode.includes('vert') || tcPrVertNode.includes('Vert') : false
+      let textDirectionValue
+        
+      if (tcPrVertNode) {
+        console.log('(00)-tableEl-text-[tcPrNode]:', tcPrNode)
+        console.log('(00)-tableEl-text-[tcPrNode]-[tcPrVertNode]:', tcPrVertNode)
+        textDirectionValue = tcPrVertNode
+      }
+      const paramsObj = {
+        isVertical,
+        textDirectionValue,
+        isUseNewDeal: false,
+        width: curWidth,
+        height: rowHeight,
+      }
+      const text = genTextBody(tcNodes['a:txBody'], tcNodes, undefined, undefined, undefined, warpObj, paramsObj)
+      // const text = genTextBody(tcNodes['a:txBody'], tcNodes, undefined, undefined, undefined, warpObj)
+
       const cell = await getTableCellParams(tcNodes, thisTblStyle, a_sorce, warpObj)
-      const td = { text }
+      console.log('(00)-tableEl-text-[useNewDeal]-[parsePPTTextToLines]-[ok]--cell:', cell)
+      const td = { text, isVertical, textDirectionValue }
       if (cell.rowSpan) td.rowSpan = cell.rowSpan
       if (cell.colSpan) td.colSpan = cell.colSpan
       if (cell.vMerge) td.vMerge = cell.vMerge
@@ -1642,9 +1884,12 @@ async function genTable(node, warpObj) {
       if (cell.borders) td.borders = cell.borders
 
       tr.push(td)
+      console.log('(00)-tableEl-text-[cellData]-td_in_tcNodes:', td)
     }
     data.push(tr)
+    console.log('(00)-tableEl-text-[cellData]-tr:', tr)
   }
+  console.log('(00)-tableEl-text-[cellData]-data:', data)
 
   let actualTableWidth = colWidths.reduce((sum, width) => sum + width, 0)
   if (actualTableWidth) actualTableWidth = numberToFixed(actualTableWidth)

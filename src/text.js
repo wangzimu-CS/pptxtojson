@@ -142,26 +142,33 @@ function getCharStyleList(fullText, runList) {
   return charStyleList
 }
 
-function parsePPTTextToLines(shapeData, width, height, lineHeightImport, getStyleUseInfo, paragraphInfo, styleObj, isInGroup, params) {
-  console.log('(00)-pptxtojson-params:', params)
-  if (!shapeData || typeof shapeData !== 'object') return []
-  const spPr = shapeData['p:spPr']
+function parsePPTTextToLines(spNode, getStyleUseInfo, paragraphInfo, styleObj, paramsObj) {
+  if (!spNode || typeof spNode !== 'object') return []
+  const spPr = spNode['p:spPr'] || spNode['a:tcPr']
   if (!spPr) return []
 
-  const xfrm = spPr['a:xfrm']
-  if (!xfrm) return []
+  if (!paramsObj || !paramsObj.height || !paramsObj.width) return []
 
-  const ext = xfrm['a:ext']
-  if (!ext || !ext.attrs || ext.attrs.cx === null) return []
+  const {lineHeight, isInGroup} = paramsObj
+  const lineHeightImport = lineHeight
+  // const xfrm = getTextByPathList(spPr, ['a:xfrm'])
+  // if (xfrm || (!width && !height)) return []
 
-  const cx = Number(ext.attrs.cx)
-  if (isNaN(cx) || cx <= 0) return []
-  const textBoxWidthPx = width
+  // const xfrm = spPr['a:xfrm']
+  // if (!xfrm) return []
 
-  const txBody = shapeData['p:txBody']
+  // const ext = xfrm['a:ext']
+  // if (!ext || !ext.attrs || ext.attrs.cx === null) return []
+
+  // const cx = Number(ext.attrs.cx)
+  // if (isNaN(cx) || cx <= 0) return []
+  const textBoxWidthPx = paramsObj && paramsObj.isVertical ? paramsObj.height : paramsObj.width
+
+  const txBody = spNode['p:txBody'] || spNode['a:txBody']
   if (!txBody) return []
 
   if (!getStyleUseInfo) return []
+
 
   const {
     pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj
@@ -487,6 +494,11 @@ function getCharWidth(
 }
 // 高精度测量：用 getBoundingClientRect() 而不是 offsetWidth（支持小数）
 function getPreciseWidth(char, fontSize = '30px', fontFamily = 'Arial', fontWeight = 'normal') {
+  // const styleObj = {
+  //   fontSize, 
+  //   fontFamily,
+  //   fontWeight,
+  // }
   const span = document.createElement('span')
   span.style.visibility = 'hidden'
   span.style.position = 'absolute'
@@ -500,6 +512,7 @@ function getPreciseWidth(char, fontSize = '30px', fontFamily = 'Arial', fontWeig
   const rect = span.getBoundingClientRect()
   document.body.removeChild(span)
   return rect.width // 小数宽度！
+  // return rect.height // 小数宽度！
 }
 
 /**
@@ -815,18 +828,14 @@ function isRemainingALLEmpty(curIndex, charList ) {
   return true
 }
 
-export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, useNewDeal, anchorInfo) {
+export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj, paramsObj) {
   if (!textBodyNode) return ''
   let text = ''
 
   const pFontStyle = getTextByPathList(spNode, ['p:style', 'a:fontRef'])
   
   const pNode = textBodyNode['a:p']
-  console.log('(00)-genTextBody-:[anchorInfo, pNode]:', anchorInfo, pNode)
-  const params = {
-    anchorInfo
-  }
-  console.log('(00)-pptxtojson-params0:', params, useNewDeal)
+  // const {width, height, useNewDeal} = paramsObj
   const pNodes = pNode.constructor === Array ? pNode : [pNode]
   
   const listTypes = []
@@ -936,20 +945,24 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
     else {
       let prevStyleInfo = null
       let accumulatedText = ''
-      if (useNewDeal) {
-
+      const isUseNewDeal = paramsObj && paramsObj.isUseNewDeal 
+      if (isUseNewDeal) {
         let newDeal = false
         if (!newDeal) {
           text = ''
           const getStyleInfo = {
             pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj
           }
-          const cutLineResultNew = parsePPTTextToLinesNew(spNode, width)
+          const cutLineResultNew = parsePPTTextToLinesNew(spNode, paramsObj.width)
           cutLineResultNew
 
           const isInGroup = warpObj.isInGroup
-          const cutLineResult = parsePPTTextToLines(spNode, width, height, lineHeight, getStyleInfo, paragraphInfo, styleObj, isInGroup, params)
-          // const fontSize = getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles, textBodyNode, pNode)
+          const cutLineParamsObj = {
+            ...paramsObj,
+            isInGroup,
+            lineHeight,
+          }
+          const cutLineResult = parsePPTTextToLines(spNode, getStyleInfo, paragraphInfo, styleObj, cutLineParamsObj)
           for (let i = 0; i < cutLineResult.length;i++ ) {
             text += cutLineResult[i].paragraphHtml
             newDeal = true
@@ -1026,229 +1039,6 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
 
   text = replaceSpaceInUnderlineSpan(text)
 
-  return text
-}
-
-export function genTextBodyFullText(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj, width, height, useNewDeal) {
-  if (!textBodyNode) return ''
-  let text = ''
-  let allLines = []
-
-  const pFontStyle = getTextByPathList(spNode, ['p:style', 'a:fontRef'])
-  
-  const pNode = textBodyNode['a:p']
-  const pNodes = pNode.constructor === Array ? pNode : [pNode]
-  
-  const listTypes = []
-  
-  for (const pNode of pNodes) {
-    let rNode = pNode['a:r']
-    let fldNode = pNode['a:fld']
-    let brNode = pNode['a:br']
-    if (rNode) {
-      rNode = (rNode.constructor === Array) ? rNode : [rNode]
-
-      if (fldNode) {
-        fldNode = (fldNode.constructor === Array) ? fldNode : [fldNode]
-        rNode = rNode.concat(fldNode)
-      }
-      if (brNode) {
-        brNode = (brNode.constructor === Array) ? brNode : [brNode]
-        brNode.forEach(item => item.type = 'br')
-  
-        if (brNode.length > 1) brNode.shift()
-        rNode = rNode.concat(brNode)
-        rNode.sort((a, b) => {
-          if (!a.attrs || !b.attrs) return true
-          return a.attrs.order - b.attrs.order
-        })
-      }
-    }
-
-    // 增加整个textbody对齐参信息的获取-解决文本框对齐问题
-    const lstStyle = textBodyNode['a:lstStyle']
-    const lstStyle_align = getTextByPathList(lstStyle, ['a:lvl1pPr', 'attrs', 'algn'])
-    const align = getHorizontalAlign(pNode, spNode, type, warpObj, lstStyle_align)
-    const spacing = getParagraphSpacing(pNode)
-    let styleText = `text-align: ${align};`
-    let lineHeight = 1
-    const styleObj = {
-      textAlign: align,
-      styleText: styleText
-    }
-    if (align === 'justify') {
-      styleText += `text-align-last: ${align};`
-    }
-    styleObj.textAlignLast = align
-    if (spacing) {
-      if (spacing.lineSpacing) {
-        styleText += `line-height: ${spacing.lineSpacing};`
-        lineHeight = spacing.lineSpacing
-        styleObj.lineHeight = lineHeight
-      }
-      if (spacing.spaceBefore) {
-        styleText += `margin-top: ${spacing.spaceBefore};`
-        styleObj.marginTop = spacing.spaceBefore
-        styleObj.styleText += `margin-top: ${spacing.spaceBefore};`
-      }
-      if (spacing.spaceAfter) {
-        styleText += `margin-bottom: ${spacing.spaceAfter};`
-        styleObj.marginBottom = spacing.spaceAfter
-        styleObj.styleText += `margin-bottom: ${spacing.spaceAfter};`
-      }
-    }
-    else {
-      // styleText += `line-height: 1.2;`
-      styleText += `line-height: 1;`
-    }
-
-    const listType = getListType(pNode)
-    const listLevel = getListLevel(pNode)
-
-    const paragraphInfo = {start: '', end: ''}
-    if (listType) {
-      while (listTypes.length > listLevel + 1) {
-        const closedListType = listTypes.pop()
-        text += `</${closedListType}>`
-      }
-
-      if (listTypes[listLevel] === undefined) {
-        text += `<${listType}>`
-        listTypes[listLevel] = listType
-      }
-      else if (listTypes[listLevel] !== listType) {
-        text += `</${listTypes[listLevel]}>`
-        text += `<${listType}>`
-        listTypes[listLevel] = listType
-      }
-      text += `<li style="${styleText}">`
-      paragraphInfo.start = `<li style="${styleText}">`
-      paragraphInfo.end = `</li>`
-    }
-    else {
-      while (listTypes.length > 0) {
-        const closedListType = listTypes.pop()
-        text += `</${closedListType}>`
-      }
-      text += `<p style="${styleText}">`
-      paragraphInfo.start = `<p style="${styleText}">`
-      paragraphInfo.end = `</p>`
-    }
-    
-    if (!rNode) {
-      text += genSpanElement(pNode, spNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
-    } 
-    else {
-      let prevStyleInfo = null
-      let accumulatedText = ''
-      if (useNewDeal) {
-
-        let newDeal = false
-        if (!newDeal) {
-          text = ''
-          const getStyleInfo = {
-            pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj
-          }
-          const cutLineResultNew = parsePPTTextToLinesNew(spNode, width)
-          cutLineResultNew
-          const isInGroup = warpObj.isInGroup
-          const cutLineResult = parsePPTTextToLines(spNode, width, height, lineHeight, getStyleInfo, paragraphInfo, styleObj, isInGroup)
-          // const fontSize = getFontSize(node, slideLayoutSpNode, type, slideMasterTextStyles, textBodyNode, pNode)
-          for (let i = 0; i < cutLineResult.length;i++ ) {
-            text += cutLineResult[i].paragraphHtml
-            allLines = [...allLines, cutLineResult[i].lines]
-            newDeal = true
-          }
-        }
-
-        if (newDeal) {
-          const abs = false
-          if (abs) {
-            text = replaceMultiNbspBlocks(text)
-            text = addStyleToSpans(text, ' line-height: inherit; vertical-align: middle;')
-          }
-          else {
-            text = replaceNbspByLimit(text, 3)
-          }
-
-          if (text.includes('&nbsp;')) {
-            text = text.replace('&nbsp;', ' ')
-          }
-          return allLines
-        }
-      }
-      
-      else {
-        //    
-        for (const rNodeItem of rNode) {
-          const styleInfo = getSpanStyleInfo(rNodeItem, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
-
-          if (!prevStyleInfo || prevStyleInfo.styleText !== styleInfo.styleText || prevStyleInfo.hasLink !== styleInfo.hasLink || styleInfo.hasLink) {
-            if (accumulatedText) {
-            // const processedText = accumulatedText.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
-            // const processedText = accumulatedText.replace(/\s/g, '&nbsp;')
-              const processedText = accumulatedText
-              text += `<span style="${prevStyleInfo.styleText}">${processedText}</span>`
-              accumulatedText = ''
-            }
-
-            if (styleInfo.hasLink) {
-            // const processedText = styleInfo.text.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
-            // const processedText = styleInfo.text.replace(/\s/g, '&nbsp;')
-              const processedText = styleInfo.text
-              text += `<span style="${styleInfo.styleText}"><a href="${styleInfo.linkURL}" target="_blank">${processedText}</a></span>`
-              prevStyleInfo = null
-            } 
-            else {
-              prevStyleInfo = styleInfo
-              accumulatedText = styleInfo.text
-            }
-          } 
-          else accumulatedText += styleInfo.text
-
-        }
-        if (accumulatedText && prevStyleInfo) {
-        // const processedText = accumulatedText.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, '&nbsp;')
-          const processedText = accumulatedText
-          text += `<span style="${prevStyleInfo.styleText}">${processedText}</span>`
-        }
-      }
-
-    }
-
-    if (listType) text += '</li>'
-    else text += '</p>'
-  }
-  while (listTypes.length > 0) {
-    const closedListType = listTypes.pop()
-    text += `</${closedListType}>`
-  }
-  const abs = false
-  if (abs) {
-    text = replaceMultiNbspBlocks(text)
-    text = addStyleToSpans(text, ' line-height: inherit; vertical-align: middle;')
-  }
-  else {
-    text = replaceNbspByLimit(text, 3)
-  }
-  if (!abs) {
-    text = addStyleToTag(text, 'p', ' margin: 0; padding: 0;')
-    const result = checkSpanLastCharIsTonePinyin(text)
-    if (abs) {
-      //
-    }
-    if (result && result.length === 1 && result[0].isTonePinyin) {
-      text = addStyleToTag(text, 'span', ' line-height: inherit; vertical-align: middle; line-break: strict; word-break: keep-all; overflow-wrap: break-word; white-space: nowrap')
-    }
-    else {
-      text = addStyleToTag(text, 'span', 'line-break: strict; overflow-wrap: break-word; white-space: pre-wrap')
-    }
-  }
-  if (text.includes('&nbsp;')) {
-    text = text.replace('&nbsp;', ' ')
-  }
-
-  text = replaceSpaceInUnderlineSpan(text)
   return text
 }
 
@@ -1352,30 +1142,30 @@ function addStyleToTag(htmlStr, tag, addStyle) {
   return result
 }
 
-function addStyleToSpans(htmlStr, addStyle) {
-  const style = addStyle.trim().endsWith(';') ? addStyle : addStyle + ';'
-  return htmlStr.replace(/<span([^>]*)style="([^"]*)"/gi, (match, attr, old) => {
-    return `<span${attr}style="${old} ${style}"`
-  }).replace(/<span(?!.*style=)/gi, `<span style="${style}"`)
-}
+// function addStyleToSpans(htmlStr, addStyle) {
+//   const style = addStyle.trim().endsWith(';') ? addStyle : addStyle + ';'
+//   return htmlStr.replace(/<span([^>]*)style="([^"]*)"/gi, (match, attr, old) => {
+//     return `<span${attr}style="${old} ${style}"`
+//   }).replace(/<span(?!.*style=)/gi, `<span style="${style}"`)
+// }
 
-function replaceMultiNbspBlocks(str) {
-  // 匹配 任意位置 连续 2个及以上的 &nbsp; 全局替换
-  return str.replace(/(&nbsp;){2,}/g, (match) => {
-    // 计算当前这个区块有多少个 &nbsp;
-    const nbspCount = (match.match(/&nbsp;/g) || []).length
+// function replaceMultiNbspBlocks(str) {
+//   // 匹配 任意位置 连续 2个及以上的 &nbsp; 全局替换
+//   return str.replace(/(&nbsp;){2,}/g, (match) => {
+//     // 计算当前这个区块有多少个 &nbsp;
+//     const nbspCount = (match.match(/&nbsp;/g) || []).length
 
-    // 规则：首尾变成普通空格，中间保留 &nbsp;
-    if (nbspCount === 1) {
-      return match
-    }
-    if (nbspCount === 2) {
-      return '  ' // 2个 → 两个普通空格
-    }
-    // 3个及以上：首尾普通空格 + 中间剩下的 &nbsp;
-    return ' ' + '&nbsp;'.repeat(nbspCount - 2) + ' '
-  })
-}
+//     // 规则：首尾变成普通空格，中间保留 &nbsp;
+//     if (nbspCount === 1) {
+//       return match
+//     }
+//     if (nbspCount === 2) {
+//       return '  ' // 2个 → 两个普通空格
+//     }
+//     // 3个及以上：首尾普通空格 + 中间剩下的 &nbsp;
+//     return ' ' + '&nbsp;'.repeat(nbspCount - 2) + ' '
+//   })
+// }
 
 function replaceNbspByLimit(str, minCount) {
   // 匹配全局连续的 &nbsp; 区块
@@ -1430,6 +1220,10 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   const slideMasterTextStyles = warpObj['slideMasterTextStyles']
   let lvl = 1
   const pPrNode = pNode['a:pPr']
+  const pPrAttrsNode = getTextByPathList(pPrNode, ['attrs', 'algn'])
+  const pPrAlgnNode = getTextByPathList(pPrNode, ['attrs', 'algn'])
+  console.log('(00)-tableEl-text-[pPrAttrsNode]:', pPrAttrsNode)
+  console.log('(00)-tableEl-text-[pPrAttrsNode]-[pPrAlgnNode]:', pPrAlgnNode)
   const lvlNode = getTextByPathList(pPrNode, ['attrs', 'lvl'])
   if (lvlNode !== undefined) lvl = parseInt(lvlNode) + 1
 
@@ -1454,7 +1248,6 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   if (!shadow) {
     shadow = getFontOutLine(node, warpObj)
   }
-  console.log('(00)-pptxtojson-text====node属性[shadow]:', shadow)
   // if (node['a:rPr']) {
   //   console.log('(00)-pptxtojson-text====node属性a:ln:', text, node['a:rPr']['a:ln'])
   //   const lnInfo = node['a:rPr']['a:ln']
