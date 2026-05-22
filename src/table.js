@@ -1,6 +1,7 @@
 import { getShapeFill, getSolidFill } from './fill'
-import { getTextByPathList } from './utils'
+import { getTextByPathList, numberToFixed } from './utils'
 import { getBorder } from './border'
+import { RATIO_EMUs_Points } from './constants'
 
 export function getTableBorders(node, warpObj) {
   const borders = {}
@@ -96,6 +97,29 @@ export async function getTableCellParams(tcNode, thisTblStyle, cellSource, warpO
     if (cellSource) lin_right = getTextByPathList(thisTblStyle[cellSource], ['a:tcStyle', 'a:tcBdr', 'a:right', 'a:ln'])
     if (!lin_right) lin_right = getTextByPathList(thisTblStyle, ['a:wholeTbl', 'a:tcStyle', 'a:tcBdr', 'a:right', 'a:ln'])
   }
+
+  // 单元格斜线处理
+  // 斜线
+  const lnTlToBrNode = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr'])
+  if (lnTlToBrNode) console.log('(00)-pptxtojson-getTableCellParams-[斜线处理]-斜线：lnTlToBrNode:', lnTlToBrNode)
+  const lnTlToBrAttrs = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr', 'attrs'])
+  const lnTlToBrW = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'attrs', 'w'])
+  if (lnTlToBrNode) console.log('(00)-pptxtojson-getTableCellParams-[斜线处理]-lnTlToBrAttrs:', lnTlToBrAttrs)
+  const lnTlToBrObj = {}
+  if (lnTlToBrW) lnTlToBrObj.w = numberToFixed(parseInt(lnTlToBrW) * RATIO_EMUs_Points)
+  console.log('(00)-pptxtojson-getTableCellParams-[斜线处理]-反斜线：-lnTlToBrObj-lnTlToBrW:', lnTlToBrW)
+  console.log('(00)-pptxtojson-getTableCellParams-[斜线处理]-反斜线：-lnTlToBrObj:', lnTlToBrObj)
+    
+  // 反斜线
+  const lnBlToTrNode = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr'])
+  const lnBlToTrAttrs = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'attrs'])
+  const lnBlToTrW = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'attrs', 'w'])
+  if (lnBlToTrNode) console.log('(00)-pptxtojson-getTableCellParams-[斜线处理]-反斜线：-lnBlToTrNode:', lnBlToTrNode)
+  if (lnBlToTrNode) console.log('(00)-pptxtojson-getTableCellParams-[斜线处理]-反斜线：-lnBlToTrAttrs:', lnBlToTrAttrs)
+  const lnBlToTrObj = {}
+  if (lnBlToTrW) lnBlToTrObj.w = numberToFixed(parseInt(lnBlToTrW) * RATIO_EMUs_Points)
+  console.log('(00)-pptxtojson-getTableCellParams-[斜线处理]-反斜线：-lnBlToTrObj-lnBlToTrW:', lnBlToTrW)
+  console.log('(00)-pptxtojson-getTableCellParams-[斜线处理]-反斜线：-lnBlToTrObj:', lnBlToTrObj)
 
   const borders = {}
   if (lin_bottm) borders.bottom = getBorder(lin_bottm, undefined, warpObj)
