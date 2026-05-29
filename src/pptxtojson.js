@@ -701,6 +701,7 @@ async function processNodesInSlide(nodeKey, nodeValue, warpObj, source, groupHie
       break
     case 'p:graphicFrame': // Chart, Diagram, Table
       json = await processGraphicFrameNode(nodeValue, warpObj, source)
+      console.log('(00)-pptxtojson-[chartEL]:-json:', json)
       break
     case 'p:grpSp':
       json = await processGroupSpNode(nodeValue, warpObj, source, groupHierarchy)
@@ -1647,6 +1648,7 @@ async function processGraphicFrameNode(node, warpObj, source) {
       break
     case 'http://schemas.openxmlformats.org/drawingml/2006/chart':
       result = await genChart(node, warpObj)
+      // console.log('(00)-pptxtojson-[chartEL]:-graphicTypeUri:', graphicTypeUri)
       break
     case 'http://schemas.openxmlformats.org/drawingml/2006/diagram':
       result = await genDiagram(node, warpObj)
@@ -1817,7 +1819,7 @@ async function genTable(node, warpObj) {
           width: curWidth,
           height: rowHeight,
         }
-        const text = genTextBody(tcNodes['a:txBody'], tcNodes, undefined, undefined, undefined, warpObj, paramsObj)
+        const text = genTextBody(tcNode['a:txBody'], tcNode, undefined, undefined, undefined, warpObj, paramsObj)
         // const text = genTextBody(tcNode['a:txBody'], tcNode, undefined, undefined, undefined, warpObj)
         const cell = await getTableCellParams(tcNode, thisTblStyle, a_sorce, warpObj)
         const td = { text, isVertical, textDirectionValue }
@@ -1829,6 +1831,7 @@ async function genTable(node, warpObj) {
         if (cell.fontColor || fontColor) td.fontColor = cell.fontColor || fontColor
         if (cell.fillColor || fillColor || tbl_bgcolor) td.fillColor = cell.fillColor || fillColor || tbl_bgcolor
         if (cell.borders) td.borders = cell.borders
+        if (cell.slashObj && JSON.stringify(cell.slashObj) !== '{}') td.slashObj = cell.slashObj
 
         tr.push(td)
         console.log('(00)-tableEl-text-[cellData]-td:', td)
@@ -1915,15 +1918,19 @@ async function genChart(node, warpObj) {
   const { width, height } = getSize(xfrmNode, undefined, undefined)
 
   const rid = node['a:graphic']['a:graphicData']['c:chart']['attrs']['r:id']
+  console.log('(00)-pptxtojson-[chartEL]:-genChart-[rid]:', rid)
   let refName = getTextByPathList(warpObj['slideResObj'], [rid, 'target'])
   if (!refName) refName = getTextByPathList(warpObj['layoutResObj'], [rid, 'target'])
   if (!refName) refName = getTextByPathList(warpObj['masterResObj'], [rid, 'target'])
   if (!refName) return {}
 
   const content = await readXmlFile(warpObj['zip'], refName)
+  console.log('(00)-pptxtojson-[chartEL]:-genChart-[content]:', content)
   const plotArea = getTextByPathList(content, ['c:chartSpace', 'c:chart', 'c:plotArea'])
 
   const chart = getChartInfo(plotArea, warpObj)
+  console.log('(00)-pptxtojson-[chartEL]:-genChart-[chart]:', chart)
+
 
   if (!chart) return {}
 

@@ -1,10 +1,10 @@
 import tinycolor from 'tinycolor2'
 import { getSchemeColorFromTheme } from './schemeColor'
 import { getTextByPathList } from './utils'
-import { getGradientFill, dealGradientFill } from './fill'
+import { getGradientFill, dealGradientFill, getSolidFill } from './fill'
 
 export function getBorder(node, elType, warpObj) {
-  let lineNode = getTextByPathList(node, ['p:spPr', 'a:ln'])
+  let lineNode = getTextByPathList(node, ['p:spPr', 'a:ln']) || getTextByPathList(node, ['a:ln'])
   if (!lineNode) {
     const lnRefNode = getTextByPathList(node, ['p:style', 'a:lnRef'])
     if (lnRefNode) {
@@ -49,6 +49,12 @@ export function getBorder(node, elType, warpObj) {
     const schemeClrNode = getTextByPathList(lineNode, ['a:solidFill', 'a:schemeClr'])
     const schemeClr = 'a:' + getTextByPathList(schemeClrNode, ['attrs', 'val'])
     borderColor = getSchemeColorFromTheme(schemeClr, warpObj)
+  }
+  // 如果有 a:solidFill 是用getSolidFill获得正确的包含透明度、对比度等信息的颜色
+  const solidFillNode = getTextByPathList(lineNode, ['a:solidFill'])
+  if (solidFillNode) {
+    const rightColor = getSolidFill(solidFillNode, warpObj)
+    if (rightColor) borderColor = rightColor.replace('#', '')
   }
 
   if (!borderColor) {

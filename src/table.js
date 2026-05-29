@@ -98,28 +98,52 @@ export async function getTableCellParams(tcNode, thisTblStyle, cellSource, warpO
     if (!lin_right) lin_right = getTextByPathList(thisTblStyle, ['a:wholeTbl', 'a:tcStyle', 'a:tcBdr', 'a:right', 'a:ln'])
   }
 
-  // 单元格斜线处理
-  // 斜线
-  const lnTlToBrNode = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr'])
-  if (lnTlToBrNode) console.log('(00)-pptxtojson-getTableCellParams-[斜线处理]-斜线：lnTlToBrNode:', lnTlToBrNode)
-  const lnTlToBrAttrs = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr', 'attrs'])
-  const lnTlToBrW = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'attrs', 'w'])
-  if (lnTlToBrNode) console.log('(00)-pptxtojson-getTableCellParams-[斜线处理]-lnTlToBrAttrs:', lnTlToBrAttrs)
+  
   const lnTlToBrObj = {}
-  if (lnTlToBrW) lnTlToBrObj.w = numberToFixed(parseInt(lnTlToBrW) * RATIO_EMUs_Points)
-  console.log('(00)-pptxtojson-getTableCellParams-[斜线处理]-反斜线：-lnTlToBrObj-lnTlToBrW:', lnTlToBrW)
-  console.log('(00)-pptxtojson-getTableCellParams-[斜线处理]-反斜线：-lnTlToBrObj:', lnTlToBrObj)
-    
-  // 反斜线
-  const lnBlToTrNode = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr'])
-  const lnBlToTrAttrs = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'attrs'])
-  const lnBlToTrW = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'attrs', 'w'])
-  if (lnBlToTrNode) console.log('(00)-pptxtojson-getTableCellParams-[斜线处理]-反斜线：-lnBlToTrNode:', lnBlToTrNode)
-  if (lnBlToTrNode) console.log('(00)-pptxtojson-getTableCellParams-[斜线处理]-反斜线：-lnBlToTrAttrs:', lnBlToTrAttrs)
+  {
+
+    // 单元格斜线处理
+    // 斜线
+    // const lnTlToBrNode = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr'])
+    // const lnTlToBrAttrs = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr', 'attrs'])
+    const lnTlToBrW = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr', 'attrs', 'w'])
+    const prstDashVal = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr', 'a:prstDash', 'val'])
+    const headEnd = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr', 'a:headEnd', 'attrs'])
+    const tailEnd = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr', 'a:tailEnd', 'attrs'])
+    const solidFill = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr', 'a:solidFill'])
+
+    if (lnTlToBrW) lnTlToBrObj.w = numberToFixed(parseInt(lnTlToBrW) * RATIO_EMUs_Points)
+    if (prstDashVal) lnTlToBrObj.prstDashVal = prstDashVal
+    if (headEnd) lnTlToBrObj.headEnd = headEnd
+    if (tailEnd) lnTlToBrObj.tailEnd = tailEnd
+    if (solidFill) lnTlToBrObj.solidFill = getSolidFill(solidFill, undefined, undefined, warpObj) 
+  }
+
+
+
   const lnBlToTrObj = {}
-  if (lnBlToTrW) lnBlToTrObj.w = numberToFixed(parseInt(lnBlToTrW) * RATIO_EMUs_Points)
-  console.log('(00)-pptxtojson-getTableCellParams-[斜线处理]-反斜线：-lnBlToTrObj-lnBlToTrW:', lnBlToTrW)
-  console.log('(00)-pptxtojson-getTableCellParams-[斜线处理]-反斜线：-lnBlToTrObj:', lnBlToTrObj)
+  {  
+  // 反斜线
+    // const lnBlToTrNode = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr'])
+    // const tcPrNode = getTextByPathList(tcNode, ['a:tcPr'])
+    // const lnBlToTrAttrs = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'attrs'])
+    const lnBlToTrW = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'attrs', 'w'])
+
+    const prstDashVal = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'a:prstDash', 'val'])
+    const headEnd = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'a:headEnd', 'attrs'])
+    const tailEnd = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'a:tailEnd', 'attrs'])
+    const solidFill = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'a:solidFill'])
+    if (lnBlToTrW) lnBlToTrObj.w = numberToFixed(parseInt(lnBlToTrW) * RATIO_EMUs_Points)
+    if (prstDashVal) lnBlToTrObj.prstDashVal = prstDashVal
+    if (headEnd) lnBlToTrObj.headEnd = headEnd
+    if (tailEnd) lnBlToTrObj.tailEnd = tailEnd
+    if (solidFill) lnBlToTrObj.solidFill = getSolidFill(solidFill, undefined, undefined, warpObj) 
+  }
+  const lnObj = {}
+  if (JSON.stringify(lnTlToBrObj) !== '{}') lnObj.lnTlToBrObj = lnTlToBrObj
+  if (JSON.stringify(lnBlToTrObj) !== '{}') lnObj.lnBlToTrObj = lnBlToTrObj
+
+
 
   const borders = {}
   if (lin_bottm) borders.bottom = getBorder(lin_bottm, undefined, warpObj)
@@ -129,6 +153,7 @@ export async function getTableCellParams(tcNode, thisTblStyle, cellSource, warpO
 
   return {
     fillColor,
+    slashObj: lnObj,
     fontColor,
     fontBold,
     borders,

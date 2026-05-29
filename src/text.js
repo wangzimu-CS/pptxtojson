@@ -143,6 +143,7 @@ function getCharStyleList(fullText, runList) {
 }
 
 function parsePPTTextToLines(spNode, getStyleUseInfo, paragraphInfo, styleObj, paramsObj) {
+  console.log('(00)-tableEl-text-[切行]-parsePPTTextToLines:', 'paramsObj')
   if (!spNode || typeof spNode !== 'object') return []
   const spPr = spNode['p:spPr'] || spNode['a:tcPr']
   if (!spPr) return []
@@ -162,7 +163,7 @@ function parsePPTTextToLines(spNode, getStyleUseInfo, paragraphInfo, styleObj, p
 
   // const cx = Number(ext.attrs.cx)
   // if (isNaN(cx) || cx <= 0) return []
-  const textBoxWidthPx = paramsObj && paramsObj.isVertical ? paramsObj.height : paramsObj.width
+  const textBoxWidthPx = (paramsObj && paramsObj.isVertical ? paramsObj.height : paramsObj.width)
 
   const txBody = spNode['p:txBody'] || spNode['a:txBody']
   if (!txBody) return []
@@ -276,6 +277,7 @@ function parsePPTTextToLines(spNode, getStyleUseInfo, paragraphInfo, styleObj, p
     let fullText = ''
     let realFontSize = 36
     const runList = []
+    console.log('(00)-tableEl-text-[切行]-runs:', runs)
     for (const r of runs) {
       if (r && typeof r['a:t'] === 'string') {
         const text = r['a:t']
@@ -307,11 +309,22 @@ function parsePPTTextToLines(spNode, getStyleUseInfo, paragraphInfo, styleObj, p
       lines = wrapTextProfessional(fullText, textBoxWidthPx - 13, charWidth, charStyleList)
     }
     else if (isInGroup) {
+      console.log('(00)-tableEl-text-[切行]-lines:', '111111111111111111111111111111')
       lines = wrapTextProfessional(fullText, textBoxWidthPx + 30, charWidth, charStyleList)
     }
-    else {
-      lines = wrapTextProfessional(fullText, textBoxWidthPx + 15, charWidth, charStyleList)
+    else if (paramsObj.isVertical) {
+      lines = wrapTextProfessional(fullText, textBoxWidthPx - 10, charWidth, charStyleList)
     }
+    else {
+      console.log('(00)-tableEl-text-[切行]-lines:', '2222222222222222222222')
+      // lines = wrapTextProfessional(fullText, textBoxWidthPx + 15, charWidth, charStyleList)
+      lines = wrapTextProfessional(fullText, textBoxWidthPx - 10, charWidth, charStyleList)
+    }
+    // console.log('(00)-tableEl-text-[切行]-parsePPTTextToLines:-[textBoxWidthPx]:', 'textBoxWidthPx')
+    // const linesNew = wrapTextProfessionalNew(fullText, textBoxWidthPx, charWidth, charStyleList)
+    // console.log('(00)-tableEl-text-[切行]-[linesNew,textBoxWidthPx]:', linesNew, textBoxWidthPx)
+    console.log('(00)-tableEl-text-[切行]-lines:', lines)
+
 
     // ===================== 正确生成 HTML =====================
     const lineSpans = []
@@ -732,6 +745,192 @@ function wrapTextProfessional(text, maxLineWidthPx, fullCharWidth, charStyleList
 
   return lines
 }
+function wrapTextProfessionalNew(text, maxLineWidthPx, fullCharWidth, charStyleList) {
+  if (typeof text !== 'string' || text === '') return []
+  if (maxLineWidthPx <= 0 || fullCharWidth <= 0) return []
+
+  const halfCharWidth = fullCharWidth * 0.5
+  const lines = []
+  let currentLine = ''
+  let currentWidth = 0
+
+  let index = 0
+  const useNew = false
+  if (!useNew) {
+    const currentWidthList = []
+    for (const char of text) {
+    // ✅ 关键修复：空格 != 汉字宽度
+    // const charW = HALF_WIDTH_CHARS.has(char) ? halfCharWidth : fullCharWidth
+      const charW1 = HALF_WIDTH_CHARS.has(char) ? halfCharWidth : fullCharWidth
+      charW1
+      // const charW = isFullWidthChar(char) && (!HALF_WIDTH_CHARS.has(char)) ? fullCharWidth : halfCharWidth
+      const charIsFullWidth = isFullWidthChar(char)
+      const charW = charIsFullWidth || char === '。' ? fullCharWidth : halfCharWidth
+
+      let useCharW = charW
+      if (charStyleList && charStyleList.length >= index) {
+
+        // const curStyle = charStyleList[index].style
+        // const fontSize = curStyle['font-size']
+        // const fontFamily = curStyle['font-family']
+        // const fontWeight = curStyle['font-weight']
+        const curStyle = charStyleList[index].styleObj
+        const {fontSize, fontFamily, fontWeight} = curStyle
+      
+
+        const realCharW = getCharWidth(char, fontSize, fontFamily, fontWeight) || charW
+        const realCharW1 = getPreciseWidth(char, fontSize, fontFamily, fontWeight) || charW
+
+        realCharW
+        useCharW = spicalChar.has(char) ? fullCharWidth : realCharW1
+      }
+
+      // isFullWidthChar(char) && (!HALF_WIDTH_CHARS.has(char)) ? fullCharWidth : halfCharWidth
+      HALF_WIDTH_CHARS.has(char)
+
+      const useMaxLineWidthPx = maxLineWidthPx
+      // 超宽判断
+      const diffW = currentWidth + useCharW - useMaxLineWidthPx
+      // const half = diffW / useCharW > 0.15 
+      diffW
+      const half = true
+      if (currentWidth + useCharW > useMaxLineWidthPx && half) {
+        // 标点不能放行首
+        if (NO_LINE_START.has(char)) {
+        // if (noLineEnter) {
+          currentLine += char
+          currentWidth += useCharW
+          currentWidthList.push(useCharW)
+          // const endWithLeftSymbol = checkLastIsLeftSymbol(currentLine)
+          const endWithLeftSymbol1 = checkLastLeftSymbol(currentLine)
+          let newStr = ''
+          let newStrWidth = 0
+          if (endWithLeftSymbol1.match) {
+            removeRightChar('sadfas', 1)
+            const rmRCharsResult = removeRightChars(currentLine, endWithLeftSymbol1.rightPosition)
+            currentLine = rmRCharsResult.newStr
+            newStr = rmRCharsResult.removedChars
+            newStrWidth = sumRightNums(currentWidthList, rmRCharsResult.removedChars.length)
+          }
+          lines.push(currentLine)
+          currentLine = newStr
+          currentWidth = newStrWidth
+        }
+        else {
+          // const endWithLeftSymbol = checkLastIsLeftSymbol(currentLine)
+          const endWithLeftSymbol1 = checkLastLeftSymbol(currentLine)
+          let newStr = ''
+          let newStrWidth = 0
+          if (endWithLeftSymbol1.match) {
+            removeRightChar('sadfas', 1)
+            const rmRCharsResult = removeRightChars(currentLine, endWithLeftSymbol1.rightPosition)
+            currentLine = rmRCharsResult.newStr
+            newStr += rmRCharsResult.removedChars
+            newStrWidth = sumRightNums(currentWidthList, rmRCharsResult.removedChars.length - 1)
+          }
+          lines.push(currentLine)
+          currentLine = newStr + char
+          currentWidth = newStrWidth + useCharW
+          currentWidthList.push(useCharW)
+          // lines.push(currentLine)
+          // currentLine = char
+          // currentWidth = useCharW
+        }
+      }
+      else {
+        currentLine += char
+        currentWidth += useCharW
+        currentWidthList.push(useCharW)
+      }
+
+      index++
+    }
+  }
+  else {
+    for (let i = 0;i < text.length;i++) {
+      const char = text[i]
+      // for (const char of text) {
+      // ✅ 关键修复：空格 != 汉字宽度
+      const charW1 = HALF_WIDTH_CHARS.has(char) ? halfCharWidth : fullCharWidth
+      charW1
+      const charIsFullWidth = isFullWidthChar(char)
+      const charW = charIsFullWidth || char === '。' ? fullCharWidth : halfCharWidth
+
+      let useCharW = charW
+      if (charStyleList && charStyleList.length >= index) {
+
+        const curStyle = charStyleList[index].styleObj
+        const {fontSize, fontFamily, fontWeight} = curStyle
+      
+
+        const realCharW = getCharWidth(char, fontSize, fontFamily, fontWeight) || charW
+        const realCharW1 = getPreciseWidth(char, fontSize, fontFamily, fontWeight) || charW
+
+        realCharW
+        useCharW = spicalChar.has(char) ? fullCharWidth : realCharW1
+      }
+
+
+      HALF_WIDTH_CHARS.has(char)
+
+      const useMaxLineWidthPx = maxLineWidthPx
+      // 超宽判断
+      if (currentWidth + useCharW > useMaxLineWidthPx) {
+      // const noLineEnter = isRemainingALLEmpty(index, text)
+        const remainInfo = isRemainingALLEmpty(i, text)
+
+        // 标点不能放行首
+        // if (NO_LINE_START.has(char)) {
+        // if (noLineEnter) {
+        //   currentLine += char
+        //   currentWidth += useCharW
+        //   lines.push(currentLine)
+        //   currentLine = ''
+        //   currentWidth = 0
+        // }
+        if (remainInfo.allInOneline) {
+          currentLine += remainInfo.remainChars
+          currentWidth += useCharW
+          lines.push({currentLine, currentWidth})
+          currentLine = ''
+          currentWidth = 0
+        }
+        else {
+          lines.push({currentLine, currentWidth})
+          currentLine = char
+          currentWidth = useCharW
+        }
+      }
+      else {
+        currentLine += char
+        currentWidth += useCharW
+      }
+
+      index++
+    }
+  }
+
+  let isEmptyLine = true
+  for (const lineChar of currentLine) {
+    if (lineChar !== ' ') {
+      isEmptyLine = false
+      break
+    }
+  }
+  isEmptyLine
+  if (currentLine !== '') {
+    if (lines.length > 0 && isEmptyLine) {
+      lines[lines.length - 1] += currentLine
+    }
+    else {
+      // lines.push(currentLine)
+      lines.push({currentLine, currentWidth})
+    }
+    // lines.push(currentLine)
+  }
+
+  return lines
+}
 
 function sumRightNums(arr, n) {
   if (!Array.isArray(arr) || n <= 0) return 0
@@ -945,7 +1144,8 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
     else {
       let prevStyleInfo = null
       let accumulatedText = ''
-      const isUseNewDeal = paramsObj && paramsObj.isUseNewDeal 
+      const isUseNewDeal = paramsObj && paramsObj.isUseNewDeal
+      console.log('(00)-tableEl-text-[切行]-paramsObj:', paramsObj) 
       if (isUseNewDeal) {
         let newDeal = false
         if (!newDeal) {

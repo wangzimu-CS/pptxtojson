@@ -1,5 +1,8 @@
 import { eachElement, getTextByPathList } from './utils'
 import { applyTint } from './color'
+import { getShadow } from './shadow'
+import { getGlow, getSoftEdge } from './glow'
+import { getBorder } from './border'
 
 function extractChartColors(serNode, warpObj) {
   if (serNode && serNode.constructor !== Array) serNode = [serNode]
@@ -88,6 +91,7 @@ function extractChartData(serNode) {
 export function getChartInfo(plotArea, warpObj) {
   let chart = null
   for (const key in plotArea) {
+    console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[key]:', key)
     switch (key) {
       case 'c:lineChart':
         chart = {
@@ -209,6 +213,113 @@ export function getChartInfo(plotArea, warpObj) {
       default:
     }
   }
+  // 其它属性解析
+  const dTableNode = getTextByPathList(plotArea, ['c:dTable'])
+  console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[dTableNode]:', dTableNode)
+  if (dTableNode) chart.chartTable = getChartTableInfo(dTableNode, warpObj)
 
   return chart
 }
+
+function getChartTableInfo(dTableNode, warpObj) {
+  const chartTable = {}
+  console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[dTableNode]:', dTableNode)
+  for (const key in dTableNode) {
+    console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-getChartTableInfo-[key]:', key)
+    if (key.includes('c:show')) chartTable[`${key.replace('c:', '')}`] = getTextByPathList(dTableNode, [`${key}`, 'attrs', 'val'])
+
+    if (key === 'c:spPr') {
+      //
+      const spPrNode = getTextByPathList(dTableNode, [`${key}`])
+      if (spPrNode) chartTable.spPrNode = spPrNode
+      if (spPrNode) chartTable.spPrInfo = getPrInfo(spPrNode, warpObj)
+
+    }
+
+    if (key === 'c:txPr') {
+      //
+      const txPrNode = getTextByPathList(dTableNode, [`${key}`])
+      if (txPrNode) chartTable.txPrNode = txPrNode
+    }
+    console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-getChartTableInfo-[key]:', key)
+  }
+  console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[chartTable]:', chartTable)
+  return chartTable 
+}
+
+function getPrInfo(prNode, warpObj) {
+  console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-getPrInfo-[prNode]:', prNode)
+  const propertySettings = {}
+  let effectData
+  {
+    const data = {}
+    // const propertySettings = {}
+    let offectObj = {}
+    // const defaultStyleObj = getTextByPathList(prNode, ['p:style'])
+    // const defaultEffectRef = getTextByPathList(prNode, ['p:style', 'a:effectRef'])
+  
+    let shadow
+    const outerShdwNode = getTextByPathList(prNode, ['a:effectLst', 'a:outerShdw'])
+    if (outerShdwNode) shadow = getShadow(outerShdwNode, warpObj)
+  
+    let glow
+    const glowNode = getTextByPathList(prNode, ['a:effectLst', 'a:glow'])
+    if (glowNode) glow = getGlow(glowNode, warpObj)
+  
+    // 获取倒影配置
+    let reflection
+    const reflectionNode = getTextByPathList(prNode, ['a:effectLst', 'a:reflection'])
+    const effectLstNode = getTextByPathList(prNode, ['a:effectLst'])
+    if (effectLstNode && !reflectionNode) {
+      //
+    }
+    else if (!effectLstNode && !reflectionNode) {
+      const effectStyleLst = warpObj['themeContent']['a:theme']['a:themeElements']['a:fmtScheme']['a:effectStyleLst']
+      const idx = getTextByPathList(prNode, ['p:style', 'a:effectRef', 'attrs', 'idx'])
+      const effectStyleList = getTextByPathList(effectStyleLst, ['a:effectStyle'])
+      const lnIdx = Number(idx) - 1
+      if (lnIdx >= 0) {
+        const targetEffect = effectStyleList[Number(lnIdx)]
+        // const defaultReflection = getTextByPathList(targetEffect, ['a:effectLst', 'a:reflection'])
+        const defaultReflection = getTextByPathList(targetEffect, ['a:effectLst'])
+        offectObj = {...offectObj, ...defaultReflection}
+        if (targetEffect) {
+          reflection = defaultReflection
+        }
+      }
+    }
+    else if (reflectionNode) {
+      reflection = reflectionNode
+      reflection
+    }
+    if (reflection) {
+      propertySettings['a:effectLst'] = offectObj
+    }
+  
+    let softEdge
+    const softEdgeNode = getTextByPathList(prNode, ['a:effectLst', 'a:softEdge'])
+    if (softEdgeNode) softEdge = getSoftEdge(softEdgeNode)
+  
+    // const vAlign = getVerticalAlign(prNode, slideLayoutSpNode, slideMasterSpNode, type)
+  
+    // console.log('(00)-pptxtosjson-bodyPrValueAttrs:', bodyPrValueAttrs)
+    // const vertValue = getTextByPathList(prNode, ['p:txBody', 'a:bodyPr', 'attrs', 'vert'])
+    // let textDirectionValue
+    // console.log('(00)-pptxtosjson-bodyPrValueAttrs:', vertValue, anchorValue, anchorCtrValue)
+    // vertValue ? textDirectionValue = vertValue : ''
+    // const vertAttrs = getTextByPathList(prNode, ['p:txBody', 'a:bodyPr', 'attrs'])
+    // const isVertical = getTextByPathList(prNode, ['p:txBody', 'a:bodyPr', 'attrs', 'vert']) === 'eaVert'
+    if (shadow) data.shadow = shadow
+    if (glow) data.glow = glow
+    if (softEdge) data.softEdge = softEdge
+    // if (autoFit) data.autoFit = autoFit
+    // if (link) data.link = link
+    console.log('(00)-ppt-math-el:data:', data)
+    effectData = data
+  }
+  const tableBorder = getBorder(prNode, '', warpObj)
+  console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-{tableBorder}:', tableBorder)
+  console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-{...effectData, ...propertySettings}:', {...effectData, ...propertySettings})
+  return {...effectData, ...propertySettings}
+}
+

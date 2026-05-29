@@ -48,7 +48,8 @@ export function getSchemeColorFromTheme(schemeClr, warpObj, clrMap, phClr) {
           break
       }
     }
-    const refNode = getTextByPathList(warpObj['themeContent'], ['a:theme', 'a:themeElements', 'a:clrScheme', schemeClr])
+    // const refNode = getTextByPathList(warpObj['themeContent'], ['a:theme', 'a:themeElements', 'a:clrScheme', schemeClr])
+    const refNode = getTextByPathList(warpObj, ['themeContent', 'a:theme', 'a:themeElements', 'a:clrScheme', schemeClr])
     color = getTextByPathList(refNode, ['a:srgbClr', 'attrs', 'val'])
     if (!color && refNode) color = getTextByPathList(refNode, ['a:sysClr', 'attrs', 'lastClr'])
   }
