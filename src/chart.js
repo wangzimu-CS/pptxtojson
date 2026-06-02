@@ -3,6 +3,8 @@ import { applyTint } from './color'
 import { getShadow } from './shadow'
 import { getGlow, getSoftEdge } from './glow'
 import { getBorder } from './border'
+import { genTextBody } from './text'
+import { getShapeFill, getSolidFill } from './fill'
 
 function extractChartColors(serNode, warpObj) {
   if (serNode && serNode.constructor !== Array) serNode = [serNode]
@@ -88,7 +90,7 @@ function extractChartData(serNode) {
   return dataMat
 }
 
-export function getChartInfo(plotArea, warpObj) {
+export function getChartInfo(plotArea, warpObj, source) {
   let chart = null
   for (const key in plotArea) {
     console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[key]:', key)
@@ -214,14 +216,140 @@ export function getChartInfo(plotArea, warpObj) {
     }
   }
   // 其它属性解析
+  // console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[plotArea]:', plotArea)
+
   const dTableNode = getTextByPathList(plotArea, ['c:dTable'])
   console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[dTableNode]:', dTableNode)
-  if (dTableNode) chart.chartTable = getChartTableInfo(dTableNode, warpObj)
+  if (dTableNode) chart.chartTable = getChartTableInfo(dTableNode, warpObj, source)
+
+  const spPrNode = getTextByPathList(plotArea, ['c:spPr'])
+  console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[spPrNode]:', spPrNode)
+  if (spPrNode) chart.spPrNode = getPrInfo(spPrNode, warpObj, source)
+  console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[chart]:', chart)
 
   return chart
 }
 
-function getChartTableInfo(dTableNode, warpObj) {
+export function getChartTitle(cTitleNode, warpObj, source) {
+  // const titleInfo = null
+  const titleInfo = {}
+  warpObj
+  for (const key in cTitleNode) {
+    // console.log('(00)-pptxtojson-[chartEL]:-genChart-[content]-getChartTitle-[key]:', key)
+    // console.log('(00)-pptxtojson-[chartEL]:-genChart-[content]-getChartTitle-[key:value]:', key, cTitleNode[`${key}`])
+    const curNode = cTitleNode[`${key}`]
+    switch (key) {
+      case 'c:tx':
+        const richNode = getTextByPathList(curNode, ['c:rich'])
+        // 处理成文本能处理的对象
+        const dealUseObj = {}
+        dealUseObj[`p:txBody`] = richNode
+        const text = genTextBody(dealUseObj['p:txBody'], dealUseObj, undefined, undefined, undefined, warpObj)
+        titleInfo.text = text || ''
+        break
+      case 'c:layout':
+        const manualLayoutNode = getTextByPathList(curNode, ['c:manualLayout'])
+        // const layoutNode = curNode
+        if (manualLayoutNode) {
+          const layoutInfo = {}
+          for (const subKey in manualLayoutNode) {
+            const curSubItemNode = manualLayoutNode[`${subKey}`]
+            if (subKey.includes('c:')) {
+              const curSubItemVal = getTextByPathList(curSubItemNode, ['attrs', 'val'])
+              layoutInfo[`${subKey.replace('c:', '')}`] = curSubItemVal
+            }
+          }
+          titleInfo.layout = layoutInfo
+        }
+        break
+      case 'c:overlay':
+        const overlayVal = getTextByPathList(curNode, ['attrs', 'val'])
+        if (overlayVal) titleInfo.overlay = overlayVal
+        // const overlayNode = curNode
+        break
+      case 'c:spPr':
+        // const spPrNode = getTextByPathList(curNode, ['c:spPr'])
+        const spPrNode = curNode
+        const spPrInfo = getPrInfo(spPrNode, warpObj, source)
+        if (spPrInfo) titleInfo.spPr = spPrInfo
+        break
+      default:
+    }
+  }
+  // console.log('(00)-pptxtojson-[chartEL]:-genChart-[content]-getChartTitle-[titleInfo]111111111:', titleInfo)
+
+  return titleInfo
+}
+
+export function getChartLegend(cLegendNode, warpObj, source, chartData) {
+  // const legendInfo = null
+  const legendInfo = {}
+  warpObj
+  console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[cLegendNode]:', cLegendNode)
+  console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[chartData]:', chartData)
+  for (const key in cLegendNode) {
+    // console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[key]:', key)
+    console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[key:value]:', key, cLegendNode[`${key}`])
+    const curNode = cLegendNode[`${key}`]
+    const curSubItemVal = getTextByPathList(curNode, ['attrs', 'val'])
+    let isOnlyAttrs = true
+    for (const subKey in curNode) {
+      if (subKey !== 'attrs') isOnlyAttrs = false ; break
+    }
+    if (curSubItemVal && key.includes('c:') && isOnlyAttrs) legendInfo[`${key.replace('c:', '')}`] = curSubItemVal
+    else if (!isOnlyAttrs && key.includes('c:')) {
+      console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[未解析]-----key:', key, cLegendNode[`${key}`])
+      switch (key) {
+        case 'c:txPr':
+          const txPrNode = curNode
+          // 处理成文本能处理的对象
+          console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[未解析]-----key-[txPrNode]:', txPrNode)
+          const attrsNode = getNodeAttrsObj(txPrNode)
+          console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[未解析]-----key-[attrsNode]:', attrsNode)
+          const dealUseObj = {}
+          dealUseObj[`p:txBody`] = txPrNode
+          const text = genTextBody(dealUseObj['p:txBody'], dealUseObj, undefined, undefined, undefined, warpObj)
+          console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[未解析]-----key-[text]:', text)
+          legendInfo.textpr = txPrNode
+          break
+        case 'c:layout':
+          const manualLayoutNode = getTextByPathList(curNode, ['c:manualLayout'])
+          // const layoutNode = curNode
+          if (manualLayoutNode) {
+            const layoutInfo = {}
+            for (const subKey in manualLayoutNode) {
+              const curSubItemNode = manualLayoutNode[`${subKey}`]
+              if (subKey.includes('c:')) {
+                const curSubItemVal = getTextByPathList(curSubItemNode, ['attrs', 'val'])
+                layoutInfo[`${subKey.replace('c:', '')}`] = curSubItemVal
+              }
+            }
+            legendInfo.layout = layoutInfo
+          }
+          break
+        case 'c:overlay':
+          const overlayVal = getTextByPathList(curNode, ['attrs', 'val'])
+          if (overlayVal) legendInfo.overlay = overlayVal
+          // const overlayNode = curNode
+          break
+        case 'c:spPr':
+        // const spPrNode = getTextByPathList(curNode, ['c:spPr'])
+          const spPrNode = curNode
+          const spPrInfo = getPrInfo(spPrNode, warpObj, source)
+          if (spPrInfo) legendInfo.spPr = spPrInfo
+          break
+        default:
+      }
+    }
+    console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[legendInfo]:', legendInfo)
+
+  }
+  // console.log('(00)-pptxtojson-[chartEL]:-genChart-[content]-getChartLegend-[legendInfo]111111111:', legendInfo)
+
+  return legendInfo
+}
+
+function getChartTableInfo(dTableNode, warpObj, source) {
   const chartTable = {}
   console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[dTableNode]:', dTableNode)
   for (const key in dTableNode) {
@@ -232,7 +360,7 @@ function getChartTableInfo(dTableNode, warpObj) {
       //
       const spPrNode = getTextByPathList(dTableNode, [`${key}`])
       if (spPrNode) chartTable.spPrNode = spPrNode
-      if (spPrNode) chartTable.spPrInfo = getPrInfo(spPrNode, warpObj)
+      if (spPrNode) chartTable.spPrInfo = getPrInfo(spPrNode, warpObj, source)
 
     }
 
@@ -247,7 +375,8 @@ function getChartTableInfo(dTableNode, warpObj) {
   return chartTable 
 }
 
-function getPrInfo(prNode, warpObj) {
+function getPrInfo(prNode, warpObj, source, tag = 'a:') {
+  tag
   console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-getPrInfo-[prNode]:', prNode)
   const propertySettings = {}
   let effectData
@@ -274,7 +403,7 @@ function getPrInfo(prNode, warpObj) {
       //
     }
     else if (!effectLstNode && !reflectionNode) {
-      const effectStyleLst = warpObj['themeContent']['a:theme']['a:themeElements']['a:fmtScheme']['a:effectStyleLst']
+      const effectStyleLst = getTextByPathList(warpObj, ['themeContent', 'a:theme', 'a:themeElements', 'a:fmtScheme', 'a:effectStyleLst'])
       const idx = getTextByPathList(prNode, ['p:style', 'a:effectRef', 'attrs', 'idx'])
       const effectStyleList = getTextByPathList(effectStyleLst, ['a:effectStyle'])
       const lnIdx = Number(idx) - 1
@@ -314,12 +443,25 @@ function getPrInfo(prNode, warpObj) {
     if (softEdge) data.softEdge = softEdge
     // if (autoFit) data.autoFit = autoFit
     // if (link) data.link = link
-    console.log('(00)-ppt-math-el:data:', data)
     effectData = data
   }
   const tableBorder = getBorder(prNode, '', warpObj)
-  console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-{tableBorder}:', tableBorder)
-  console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-{...effectData, ...propertySettings}:', {...effectData, ...propertySettings})
+  propertySettings.border = tableBorder
+
+  const fill = getSolidFill(prNode, undefined, undefined, warpObj)
+  propertySettings.fill = fill
   return {...effectData, ...propertySettings}
 }
 
+export function dealListItem(list, target) {
+  list, target
+  // if(){}
+}
+
+export function getNodeAttrsObj(node) {
+  const attrsNode = getTextByPathList(node, ['attrs'])
+  for (const key in attrsNode) {
+    console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-getNodeAttrsObj-[key]:', key)
+  }
+  return attrsNode
+}

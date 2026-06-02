@@ -2,7 +2,7 @@ import JSZip from 'jszip'
 import { readXmlFile, simplifyLostLess } from './readXmlFile'
 import { getBorder } from './border'
 import { getSlideBackgroundFill, getShapeFill, getSolidFill, getPicFill, getPicFilters, dealGradientFill, getPicFillOpacity } from './fill'
-import { getChartInfo } from './chart'
+import { getChartInfo, getChartTitle, getChartLegend } from './chart'
 import { getVerticalAlign, getTextAutoFit } from './align'
 import { getPosition, getSize } from './position'
 import { genTextBody } from './text'
@@ -1647,7 +1647,7 @@ async function processGraphicFrameNode(node, warpObj, source) {
       result = await genTable(node, warpObj)
       break
     case 'http://schemas.openxmlformats.org/drawingml/2006/chart':
-      result = await genChart(node, warpObj)
+      result = await genChart(node, warpObj, source)
       // console.log('(00)-pptxtojson-[chartEL]:-graphicTypeUri:', graphicTypeUri)
       break
     case 'http://schemas.openxmlformats.org/drawingml/2006/diagram':
@@ -1911,7 +1911,7 @@ async function genTable(node, warpObj) {
   }
 }
 
-async function genChart(node, warpObj) {
+async function genChart(node, warpObj, source) {
   const order = node['attrs']['order']
   const xfrmNode = getTextByPathList(node, ['p:xfrm'])
   const { top, left } = getPosition(xfrmNode, undefined, undefined)
@@ -1925,10 +1925,16 @@ async function genChart(node, warpObj) {
   if (!refName) return {}
 
   const content = await readXmlFile(warpObj['zip'], refName)
-  console.log('(00)-pptxtojson-[chartEL]:-genChart-[content]:', content)
   const plotArea = getTextByPathList(content, ['c:chartSpace', 'c:chart', 'c:plotArea'])
+  const chart = getChartInfo(plotArea, warpObj, source)
 
-  const chart = getChartInfo(plotArea, warpObj)
+  const plotTitle = getTextByPathList(content, ['c:chartSpace', 'c:chart', 'c:title'])
+  const chartTitleInfo = getChartTitle(plotTitle, warpObj, source)
+  const plotLegend = getTextByPathList(content, ['c:chartSpace', 'c:chart', 'c:legend'])
+  console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]:', plotLegend)
+  const chartLegendInfo = getChartLegend(plotLegend, warpObj, source, chart.data)
+  
+
   console.log('(00)-pptxtojson-[chartEL]:-genChart-[chart]:', chart)
 
 
@@ -1936,6 +1942,10 @@ async function genChart(node, warpObj) {
 
   const data = {
     type: 'chart',
+    titile: chartTitleInfo,
+    table: chart.chartTable,
+    spPrNode: chart.spPrNode,
+    legend: chartLegendInfo,
     top,
     left,
     width,
