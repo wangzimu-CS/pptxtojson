@@ -1932,7 +1932,7 @@ async function genChart(node, warpObj, source) {
   const chartTitleInfo = getChartTitle(plotTitle, warpObj, source)
   const plotLegend = getTextByPathList(content, ['c:chartSpace', 'c:chart', 'c:legend'])
   console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]:', plotLegend)
-  const chartLegendInfo = getChartLegend(plotLegend, warpObj, source, chart.data)
+  const chartLegendInfo = getChartLegend(plotLegend, warpObj, source)
   
 
   console.log('(00)-pptxtojson-[chartEL]:-genChart-[chart]:', chart)

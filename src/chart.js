@@ -220,11 +220,11 @@ export function getChartInfo(plotArea, warpObj, source) {
 
   const dTableNode = getTextByPathList(plotArea, ['c:dTable'])
   console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[dTableNode]:', dTableNode)
-  if (dTableNode) chart.chartTable = getChartTableInfo(dTableNode, warpObj, source)
+  if (dTableNode && chart) chart.chartTable = getChartTableInfo(dTableNode, warpObj, source)
 
   const spPrNode = getTextByPathList(plotArea, ['c:spPr'])
   console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[spPrNode]:', spPrNode)
-  if (spPrNode) chart.spPrNode = getPrInfo(spPrNode, warpObj, source)
+  if (spPrNode && chart) chart.spPrNode = getPrInfo(spPrNode, warpObj, source)
   console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[chart]:', chart)
 
   return chart
@@ -281,12 +281,11 @@ export function getChartTitle(cTitleNode, warpObj, source) {
   return titleInfo
 }
 
-export function getChartLegend(cLegendNode, warpObj, source, chartData) {
+export function getChartLegend(cLegendNode, warpObj, source) {
   // const legendInfo = null
   const legendInfo = {}
   warpObj
   console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[cLegendNode]:', cLegendNode)
-  console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[chartData]:', chartData)
   for (const key in cLegendNode) {
     // console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[key]:', key)
     console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[key:value]:', key, cLegendNode[`${key}`])
