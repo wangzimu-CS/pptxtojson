@@ -1942,7 +1942,7 @@ async function genChart(node, warpObj, source) {
 
   const data = {
     type: 'chart',
-    titile: chartTitleInfo,
+    title: chartTitleInfo,
     table: chart.chartTable,
     spPrNode: chart.spPrNode,
     legend: chartLegendInfo,
