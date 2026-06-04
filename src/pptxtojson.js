@@ -1806,6 +1806,7 @@ async function genTable(node, warpObj) {
         // const isVertical = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert']) === 'eaVert'
         const isVertical = tcPrVertNode ? tcPrVertNode.includes('vert') || tcPrVertNode.includes('Vert') : false
         let textDirectionValue
+        console.log('(00)-tableEl-text-[isVertical]:', isVertical)
         
         if (tcPrVertNode) {
           console.log('(00)-tableEl-text-[tcPrNode]:', tcPrNode)
@@ -1815,7 +1816,7 @@ async function genTable(node, warpObj) {
         const paramsObj = {
           isVertical,
           textDirectionValue,
-          isUseNewDeal: false,
+          isUseNewDeal: false || isVertical,
           width: curWidth,
           height: rowHeight,
         }
@@ -1858,6 +1859,8 @@ async function genTable(node, warpObj) {
       const tcPrVertNode = getTextByPathList(tcNodes['a:tcPr'], ['attrs', 'vert'])
       const isVertical = tcPrVertNode ? tcPrVertNode.includes('vert') || tcPrVertNode.includes('Vert') : false
       let textDirectionValue
+      console.log('(00)-tableEl-text-[isVertical]:', isVertical)
+
         
       if (tcPrVertNode) {
         console.log('(00)-tableEl-text-[tcPrNode]:', tcPrNode)
@@ -1867,9 +1870,10 @@ async function genTable(node, warpObj) {
       const paramsObj = {
         isVertical,
         textDirectionValue,
-        isUseNewDeal: false,
+        isUseNewDeal: false || isVertical,
         width: curWidth,
         height: rowHeight,
+        type: 'table',
       }
       const text = genTextBody(tcNodes['a:txBody'], tcNodes, undefined, undefined, undefined, warpObj, paramsObj)
       // const text = genTextBody(tcNodes['a:txBody'], tcNodes, undefined, undefined, undefined, warpObj)
