@@ -1805,6 +1805,13 @@ async function genTable(node, warpObj) {
         const tcPrVertNode = getTextByPathList(tcNode['a:tcPr'], ['attrs', 'vert'])
         // const isVertical = getTextByPathList(node, ['p:txBody', 'a:bodyPr', 'attrs', 'vert']) === 'eaVert'
         const isVertical = tcPrVertNode ? tcPrVertNode.includes('vert') || tcPrVertNode.includes('Vert') : false
+
+        const anchorInfo = getTextByPathList(tcNode['a:tcPr'], ['attrs', 'anchor'])
+        // t、b、ctr
+        // const anchorCheckList = ['t', 'b', 'ctr']
+        const anchorDict = {'t': 'flex-start', 'b': 'flex-end', 'ctr': 'center'}
+        const anchor = anchorInfo && anchorDict[`${anchorInfo}`] ? anchorDict[`${anchorInfo}`] : anchorDict['t']
+
         let textDirectionValue
         console.log('(00)-tableEl-text-[isVertical]:', isVertical)
         
@@ -1815,6 +1822,7 @@ async function genTable(node, warpObj) {
         }
         const paramsObj = {
           isVertical,
+          anchor,
           textDirectionValue,
           isUseNewDeal: false || isVertical,
           width: curWidth,
@@ -1823,7 +1831,7 @@ async function genTable(node, warpObj) {
         const text = genTextBody(tcNode['a:txBody'], tcNode, undefined, undefined, undefined, warpObj, paramsObj)
         // const text = genTextBody(tcNode['a:txBody'], tcNode, undefined, undefined, undefined, warpObj)
         const cell = await getTableCellParams(tcNode, thisTblStyle, a_sorce, warpObj)
-        const td = { text, isVertical, textDirectionValue }
+        const td = { text, isVertical, textDirectionValue, anchor }
         if (cell.rowSpan) td.rowSpan = cell.rowSpan
         if (cell.colSpan) td.colSpan = cell.colSpan
         if (cell.vMerge) td.vMerge = cell.vMerge
@@ -1833,6 +1841,7 @@ async function genTable(node, warpObj) {
         if (cell.fillColor || fillColor || tbl_bgcolor) td.fillColor = cell.fillColor || fillColor || tbl_bgcolor
         if (cell.borders) td.borders = cell.borders
         if (cell.slashObj && JSON.stringify(cell.slashObj) !== '{}') td.slashObj = cell.slashObj
+        console.log('(00)-tableEl-pptxtojson-anlysis-[td.fillColor]:', td.fillColor)
 
         tr.push(td)
         console.log('(00)-tableEl-text-[cellData]-td:', td)
@@ -1859,16 +1868,24 @@ async function genTable(node, warpObj) {
       const tcPrVertNode = getTextByPathList(tcNodes['a:tcPr'], ['attrs', 'vert'])
       const isVertical = tcPrVertNode ? tcPrVertNode.includes('vert') || tcPrVertNode.includes('Vert') : false
       let textDirectionValue
-      console.log('(00)-tableEl-text-[isVertical]:', isVertical)
+      // console.log('(00)-tableEl-text-[isVertical]:', isVertical)
+      const anchorInfo = getTextByPathList(tcNodes['a:tcPr'], ['attrs', 'anchor'])
+      // t、b、ctr
+      // const anchorCheckList = ['t', 'b', 'ctr']
+      const anchorDict = {'t': 'flex-start', 'b': 'flex-end', 'ctr': 'center'}
+      const anchor = anchorInfo && anchorDict[`${anchorInfo}`] ? anchorDict[`${anchorInfo}`] : anchorDict['t']
+      // console.log('(00)-tableEl-text-[spPr]---pptxtojson-[anchor]:', anchor, tcNodes['a:tcPr'])
+
 
         
       if (tcPrVertNode) {
-        console.log('(00)-tableEl-text-[tcPrNode]:', tcPrNode)
-        console.log('(00)-tableEl-text-[tcPrNode]-[tcPrVertNode]:', tcPrVertNode)
+        // console.log('(00)-tableEl-text-[tcPrNode]:', tcPrNode)
+        // console.log('(00)-tableEl-text-[tcPrNode]-[tcPrVertNode]:', tcPrVertNode)
         textDirectionValue = tcPrVertNode
       }
       const paramsObj = {
         isVertical,
+        anchor,
         textDirectionValue,
         isUseNewDeal: false || isVertical,
         width: curWidth,
@@ -1880,7 +1897,7 @@ async function genTable(node, warpObj) {
 
       const cell = await getTableCellParams(tcNodes, thisTblStyle, a_sorce, warpObj)
       console.log('(00)-tableEl-text-[useNewDeal]-[parsePPTTextToLines]-[ok]--cell:', cell)
-      const td = { text, isVertical, textDirectionValue }
+      const td = { text, isVertical, textDirectionValue, anchor }
       if (cell.rowSpan) td.rowSpan = cell.rowSpan
       if (cell.colSpan) td.colSpan = cell.colSpan
       if (cell.vMerge) td.vMerge = cell.vMerge
@@ -1889,6 +1906,7 @@ async function genTable(node, warpObj) {
       if (cell.fontColor || fontColor) td.fontColor = cell.fontColor || fontColor
       if (cell.fillColor || fillColor || tbl_bgcolor) td.fillColor = cell.fillColor || fillColor || tbl_bgcolor
       if (cell.borders) td.borders = cell.borders
+      console.log('(00)-tableEl-pptxtojson-anlysis-[td.fillColor]:', td.fillColor)
 
       tr.push(td)
       console.log('(00)-tableEl-text-[cellData]-td_in_tcNodes:', td)

@@ -1,7 +1,12 @@
 import { getShapeFill, getSolidFill } from './fill'
-import { getTextByPathList, numberToFixed } from './utils'
+import { getTextByPathList } from './utils'
 import { getBorder } from './border'
-import { RATIO_EMUs_Points } from './constants'
+
+function getTableTextColor(tcTxStyle, warpObj) {
+  if (!tcTxStyle) return undefined
+
+  return getSolidFill(tcTxStyle['a:solidFill'] || tcTxStyle, undefined, undefined, warpObj)
+}
 
 export function getTableBorders(node, warpObj) {
   const borders = {}
@@ -49,6 +54,7 @@ export async function getTableCellParams(tcNode, thisTblStyle, cellSource, warpO
   const colSpan = getTextByPathList(tcNode, ['attrs', 'gridSpan'])
   const vMerge = getTextByPathList(tcNode, ['attrs', 'vMerge'])
   const hMerge = getTextByPathList(tcNode, ['attrs', 'hMerge'])
+  const anchor = getTextByPathList(tcNode, ['a:tcPr', 'attrs', 'anchor'])
   let fillColor
   let fontColor
   let fontBold
@@ -73,7 +79,7 @@ export async function getTableCellParams(tcNode, thisTblStyle, cellSource, warpO
   let rowTxtStyl
   if (cellSource) rowTxtStyl = getTextByPathList(thisTblStyle, [cellSource, 'a:tcTxStyle'])
   if (rowTxtStyl) {
-    fontColor = getSolidFill(rowTxtStyl, undefined, undefined, warpObj)
+    fontColor = getTableTextColor(rowTxtStyl, warpObj)
     if (getTextByPathList(rowTxtStyl, ['attrs', 'b']) === 'on') fontBold = true
   }
 
@@ -98,53 +104,6 @@ export async function getTableCellParams(tcNode, thisTblStyle, cellSource, warpO
     if (!lin_right) lin_right = getTextByPathList(thisTblStyle, ['a:wholeTbl', 'a:tcStyle', 'a:tcBdr', 'a:right', 'a:ln'])
   }
 
-  
-  const lnTlToBrObj = {}
-  {
-
-    // 单元格斜线处理
-    // 斜线
-    // const lnTlToBrNode = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr'])
-    // const lnTlToBrAttrs = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr', 'attrs'])
-    const lnTlToBrW = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr', 'attrs', 'w'])
-    const prstDashVal = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr', 'a:prstDash', 'val'])
-    const headEnd = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr', 'a:headEnd', 'attrs'])
-    const tailEnd = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr', 'a:tailEnd', 'attrs'])
-    const solidFill = getTextByPathList(tcNode, ['a:tcPr', 'a:lnTlToBr', 'a:solidFill'])
-
-    if (lnTlToBrW) lnTlToBrObj.w = numberToFixed(parseInt(lnTlToBrW) * RATIO_EMUs_Points)
-    if (prstDashVal) lnTlToBrObj.prstDashVal = prstDashVal
-    if (headEnd) lnTlToBrObj.headEnd = headEnd
-    if (tailEnd) lnTlToBrObj.tailEnd = tailEnd
-    if (solidFill) lnTlToBrObj.solidFill = getSolidFill(solidFill, undefined, undefined, warpObj) 
-  }
-
-
-
-  const lnBlToTrObj = {}
-  {  
-  // 反斜线
-    // const lnBlToTrNode = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr'])
-    // const tcPrNode = getTextByPathList(tcNode, ['a:tcPr'])
-    // const lnBlToTrAttrs = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'attrs'])
-    const lnBlToTrW = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'attrs', 'w'])
-
-    const prstDashVal = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'a:prstDash', 'val'])
-    const headEnd = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'a:headEnd', 'attrs'])
-    const tailEnd = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'a:tailEnd', 'attrs'])
-    const solidFill = getTextByPathList(tcNode, ['a:tcPr', 'a:lnBlToTr', 'a:solidFill'])
-    if (lnBlToTrW) lnBlToTrObj.w = numberToFixed(parseInt(lnBlToTrW) * RATIO_EMUs_Points)
-    if (prstDashVal) lnBlToTrObj.prstDashVal = prstDashVal
-    if (headEnd) lnBlToTrObj.headEnd = headEnd
-    if (tailEnd) lnBlToTrObj.tailEnd = tailEnd
-    if (solidFill) lnBlToTrObj.solidFill = getSolidFill(solidFill, undefined, undefined, warpObj) 
-  }
-  const lnObj = {}
-  if (JSON.stringify(lnTlToBrObj) !== '{}') lnObj.lnTlToBrObj = lnTlToBrObj
-  if (JSON.stringify(lnBlToTrObj) !== '{}') lnObj.lnBlToTrObj = lnBlToTrObj
-
-
-
   const borders = {}
   if (lin_bottm) borders.bottom = getBorder(lin_bottm, undefined, warpObj)
   if (lin_top) borders.top = getBorder(lin_top, undefined, warpObj)
@@ -153,10 +112,10 @@ export async function getTableCellParams(tcNode, thisTblStyle, cellSource, warpO
 
   return {
     fillColor,
-    slashObj: lnObj,
     fontColor,
     fontBold,
     borders,
+    vAlign: (anchor === 'ctr') ? 'mid' : ((anchor === 'b') ? 'down' : 'up'),
     rowSpan: rowSpan ? +rowSpan : undefined,
     colSpan: colSpan ? +colSpan : undefined,
     vMerge: vMerge ? +vMerge : undefined,
@@ -177,7 +136,7 @@ export function getTableRowParams(trNodes, i, tblStylAttrObj, thisTblStyle, warp
     }
     const rowTxtStyl = getTextByPathList(thisTblStyle, ['a:wholeTbl', 'a:tcTxStyle'])
     if (rowTxtStyl) {
-      const local_fontColor = getSolidFill(rowTxtStyl, undefined, undefined, warpObj)
+      const local_fontColor = getTableTextColor(rowTxtStyl, warpObj)
       if (local_fontColor) fontColor = local_fontColor
       if (getTextByPathList(rowTxtStyl, ['attrs', 'b']) === 'on') fontBold = true
     }
@@ -190,7 +149,7 @@ export function getTableRowParams(trNodes, i, tblStylAttrObj, thisTblStyle, warp
     }
     const rowTxtStyl = getTextByPathList(thisTblStyle, ['a:firstRow', 'a:tcTxStyle'])
     if (rowTxtStyl) {
-      const local_fontColor = getSolidFill(rowTxtStyl, undefined, undefined, warpObj)
+      const local_fontColor = getTableTextColor(rowTxtStyl, warpObj)
       if (local_fontColor) fontColor = local_fontColor
       if (getTextByPathList(rowTxtStyl, ['attrs', 'b']) === 'on') fontBold = true
     }
@@ -205,7 +164,7 @@ export function getTableRowParams(trNodes, i, tblStylAttrObj, thisTblStyle, warp
       }
       const rowTxtStyl = getTextByPathList(thisTblStyle, ['a:band2H', 'a:tcTxStyle'])
       if (rowTxtStyl) {
-        const local_fontColor = getSolidFill(rowTxtStyl, undefined, undefined, warpObj)
+        const local_fontColor = getTableTextColor(rowTxtStyl, warpObj)
         if (local_fontColor) fontColor = local_fontColor
       }
       if (getTextByPathList(rowTxtStyl, ['attrs', 'b']) === 'on') fontBold = true
@@ -218,7 +177,7 @@ export function getTableRowParams(trNodes, i, tblStylAttrObj, thisTblStyle, warp
       }
       const rowTxtStyl = getTextByPathList(thisTblStyle, ['a:band1H', 'a:tcTxStyle'])
       if (rowTxtStyl) {
-        const local_fontColor = getSolidFill(rowTxtStyl, undefined, undefined, warpObj)
+        const local_fontColor = getTableTextColor(rowTxtStyl, warpObj)
         if (local_fontColor) fontColor = local_fontColor
         if (getTextByPathList(rowTxtStyl, ['attrs', 'b']) === 'on') fontBold = true
       }
@@ -234,7 +193,7 @@ export function getTableRowParams(trNodes, i, tblStylAttrObj, thisTblStyle, warp
     }
     const rowTxtStyl = getTextByPathList(thisTblStyle, ['a:lastRow', 'a:tcTxStyle'])
     if (rowTxtStyl) {
-      const local_fontColor = getSolidFill(rowTxtStyl, undefined, undefined, warpObj)
+      const local_fontColor = getTableTextColor(rowTxtStyl, warpObj)
       if (local_fontColor) fontColor = local_fontColor
       if (getTextByPathList(rowTxtStyl, ['attrs', 'b']) === 'on') fontBold = true
     }

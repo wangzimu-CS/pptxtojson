@@ -872,9 +872,9 @@ export function getSolidFill(solidFill, clrMap, phClr, warpObj) {
   }
   // satMod tint
   // console.log('(00)-pptxtojson-getSpanStyleInfo-[fontColor]:-getFontColor-[filTyp]:-getSolidFill-[alpha,hueMod,lumMod,lumOff,satMod,shade,tint]', alpha, hueMod, lumMod, lumOff, satMod, shade, tint)
-  if (originColor && tint && !isAlpha) {
-    color = originColor
-  }
+  // if (originColor && tint && !isAlpha) {
+  //   color = originColor
+  // }
 
   if (color && color.indexOf('#') === -1) color = '#' + color
 

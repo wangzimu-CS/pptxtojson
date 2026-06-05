@@ -146,6 +146,7 @@ function parsePPTTextToLines(spNode, getStyleUseInfo, paragraphInfo, styleObj, p
   console.log('(00)-tableEl-text-[切行]-parsePPTTextToLines:', 'paramsObj')
   if (!spNode || typeof spNode !== 'object') return []
   const spPr = spNode['p:spPr'] || spNode['a:tcPr']
+  // console.log('(00)-tableEl-text-[spPr]:', spPr)
   if (!spPr) return []
 
   if (!paramsObj || !paramsObj.height || !paramsObj.width) return []
@@ -1071,7 +1072,7 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
     let lineHeight = 1
     const styleObj = {
       textAlign: align,
-      styleText: styleText
+      styleText: styleText,
     }
     if (align === 'justify') {
       styleText += `text-align-last: ${align};`
@@ -1081,6 +1082,34 @@ export function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMaster
       // styleObj.margin = 0
       // styleObj.padding = 0
     }
+
+    // const spPr = spNode['p:spPr'] || spNode['a:tcPr']
+    // const attrsNode = getTextByPathList(spPr, ['attrs'])
+    // // t、b、ctr
+    // // const anchorCheckList = ['t', 'b', 'ctr']
+    // const anchorDict = {'t': 'flex-start', 'b': 'flex-end', 'ctr': 'center'}
+    // console.log('(00)-tableEl-text-[spPr]:', spPr, attrsNode, Object.keys(anchorDict))
+    // let alignItems = anchorDict['t']
+    // if (spPr && attrsNode) {
+    //   const anchorInfo = getTextByPathList(attrsNode, ['anchor'])
+    //   if (anchorInfo && Object.keys(anchorDict).includes(anchorInfo)) {
+    //     alignItems = anchorDict[`${anchorInfo}`]
+    //     styleText += `align-items: ${alignItems};`
+    //     styleText += `display: flex;`
+    //     styleObj.alignItems = alignItems
+    //     styleObj.display = 'flex'
+    //     styleText += `border: 1px solid red;`
+    //     styleObj.border = ' 1px solid red'
+
+    //     // styleText += `width: 100%;`
+    //     // styleObj.width = ' 1px solid red'
+    //     styleText += `height: 100%;`
+    //     styleObj.height = '100%'
+    //   }
+    // }
+    // console.log('(00)-tableEl-text-[spPr]:', spPr, attrsNode, alignItems, styleText, styleObj)
+
+
     if (spacing) {
       if (spacing.lineSpacing) {
         styleText += `line-height: ${spacing.lineSpacing};`
