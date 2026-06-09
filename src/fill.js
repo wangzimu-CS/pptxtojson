@@ -175,7 +175,9 @@ export async function getBgPicFill(bgPr, sorce, warpObj) {
 }
 
 export function getGradientFill(node, warpObj) {
-  const gsLst = node['a:gsLst']['a:gs']
+  // const gsLst = node['a:gsLst']['a:gs']
+  const gsLst = getTextByPathList(node, ['a:gsLst', 'a:gs'])
+  if (!gsLst) return
   const colors = []
   for (let i = 0; i < gsLst.length; i++) {
     if (gsLst[i] && gsLst[i]['a:schemeClr']) {
@@ -190,6 +192,7 @@ export function getGradientFill(node, warpObj) {
 
     colors[i] = {
       pos: pos ? (pos / 1000 + '%') : '',
+      posValue: pos ? (Number(pos) / 100000) : 0,
       color: lo_color,
     }
   }
@@ -941,6 +944,7 @@ function HSLToHex(h, s, l) {
 }
 
 export function dealGradientFill(targetObj, type = 'css') {
+  if (!targetObj) return 
   if (type === 'css') {
     if (targetObj.type === 'gradient') {
       const {rot, path, colors} = targetObj.value

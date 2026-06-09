@@ -4,29 +4,63 @@ import { getShadow } from './shadow'
 import { getGlow, getSoftEdge } from './glow'
 import { getBorder } from './border'
 import { genTextBody } from './text'
-import { getShapeFill, getSolidFill } from './fill'
+import { getSolidFill, getGradientFill } from './fill'
 
 function extractChartColors(serNode, warpObj) {
   if (serNode && serNode.constructor !== Array) serNode = [serNode]
   if (!serNode) return
   const schemeClrs = []
   for (const node of serNode) {
-    let schemeClr = getTextByPathList(node, ['c:spPr', 'a:solidFill', 'a:schemeClr'])
-    if (!schemeClr) schemeClr = getTextByPathList(node, ['c:spPr', 'a:ln', 'a:solidFill', 'a:schemeClr'])
-    if (!schemeClr) schemeClr = getTextByPathList(node, ['c:marker', 'c:spPr', 'a:ln', 'a:solidFill', 'a:schemeClr'])
+    // let schemeClr = getTextByPathList(node, ['c:spPr', 'a:solidFill', 'a:schemeClr'])
+    // if (!schemeClr) schemeClr = getTextByPathList(node, ['c:spPr', 'a:ln', 'a:solidFill', 'a:schemeClr'])
+    // if (!schemeClr) schemeClr = getTextByPathList(node, ['c:marker', 'c:spPr', 'a:ln', 'a:solidFill', 'a:schemeClr'])
 
-    let clr = getTextByPathList(schemeClr, ['attrs', 'val'])
-    if (clr) {
-      clr = getTextByPathList(warpObj['themeContent'], ['a:theme', 'a:themeElements', 'a:clrScheme', `a:${clr}`, 'a:srgbClr', 'attrs', 'val'])
-      const tint = getTextByPathList(schemeClr, ['a:tint', 'attrs', 'val']) / 100000
-      if (clr && !isNaN(tint)) {
-        clr = applyTint(clr, tint)
+    // let clr = getTextByPathList(schemeClr, ['attrs', 'val'])
+    // if (clr) {
+    //   clr = getTextByPathList(warpObj['themeContent'], ['a:theme', 'a:themeElements', 'a:clrScheme', `a:${clr}`, 'a:srgbClr', 'attrs', 'val'])
+    //   const tint = getTextByPathList(schemeClr, ['a:tint', 'attrs', 'val']) / 100000
+    //   if (clr && !isNaN(tint)) {
+    //     clr = applyTint(clr, tint)
+    //   }
+    // }
+    // else clr = getTextByPathList(node, ['c:spPr', 'a:solidFill', 'a:srgbClr', 'attrs', 'val'])
+
+    // if (clr) clr = '#' + clr
+    // schemeClrs.push(clr)
+
+    {
+      let schemeClr = getTextByPathList(node, ['c:spPr', 'a:solidFill'])
+      if (!schemeClr) schemeClr = getTextByPathList(node, ['c:spPr', 'a:ln', 'a:solidFill'])
+      if (!schemeClr) schemeClr = getTextByPathList(node, ['c:marker', 'c:spPr', 'a:ln', 'a:solidFill'])
+    
+      let clr = ''
+      console.log('(00)-pptxtojson-[chartEL]:-analysis-[schemeClr]-node:', node)
+
+      const clrObj = {}
+
+      if (schemeClr) {
+        clrObj.type = 'color'
+        clrObj.value = getSolidFill(schemeClr, undefined, undefined, warpObj)
       }
-    }
-    else clr = getTextByPathList(node, ['c:spPr', 'a:solidFill', 'a:srgbClr', 'attrs', 'val'])
 
-    if (clr) clr = '#' + clr
-    schemeClrs.push(clr)
+      if (JSON.stringify(clrObj) === '{}') {
+        // 颜色获取失败，考虑获取渐变色
+        let schemeClrINfoObj = getTextByPathList(node, ['c:spPr', 'a:gradFill'])
+        if (!schemeClrINfoObj) schemeClrINfoObj = getTextByPathList(node, ['c:spPr', 'a:ln', 'a:gradFill'])
+        if (!schemeClrINfoObj) schemeClrINfoObj = getTextByPathList(node, ['c:marker', 'c:spPr', 'a:ln', 'a:gradFill'])
+        const shpFill = schemeClrINfoObj
+        if (shpFill) {
+          clrObj.type = 'gradient'
+          clrObj.value = getGradientFill(shpFill, warpObj)
+        }
+      }
+
+      clr = clrObj
+      schemeClrs.push(clr)
+      console.log('(00)-pptxtojson-[chartEL]:-analysis-[schemeClr]:', schemeClr)
+    }
+    console.log('')
+    console.log('(00)-pptxtojson-[chartEL]:-analysis-[schemeClrs]:', schemeClrs)
   }
   return schemeClrs
 }
@@ -137,7 +171,6 @@ function getDLblsInfo(node, warpObj, source) {
           if (curNode) dLblsInfo.spPr = getPrInfo(curNode, warpObj, source)
           break
         case 'c:txPr':
-          if (curNode) dLblsInfo.spPr = getPrInfo(curNode, warpObj, source)
           const dealUseObj = {}
           dealUseObj[`p:txBody`] = curNode
           const text = genTextBody(dealUseObj['p:txBody'], dealUseObj, undefined, undefined, undefined, warpObj)
@@ -507,8 +540,15 @@ function getPrInfo(prNode, warpObj, source, tag = 'a:') {
   const tableBorder = getBorder(prNode, '', warpObj)
   propertySettings.border = tableBorder
 
-  const fill = getSolidFill(prNode, undefined, undefined, warpObj)
-  propertySettings.fill = fill
+  const solidFillNode = getTextByPathList(prNode, ['a:solidFill'])
+  if (solidFillNode) {
+    const fill = getSolidFill(solidFillNode, undefined, undefined, warpObj)
+    propertySettings.fill = {
+      type: 'color',
+      value: fill
+    }
+  }
+
   return {...effectData, ...propertySettings}
 }
 
