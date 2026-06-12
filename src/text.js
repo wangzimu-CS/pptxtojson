@@ -1445,7 +1445,8 @@ export function genSpanElement(node, pNode, textBodyNode, pFontStyle, slideLayou
 }
 
 export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
-  const lstStyle = textBodyNode['a:lstStyle']
+  // const lstStyle = textBodyNode['a:lstStyle']
+  const lstStyle = getTextByPathList(textBodyNode, ['a:lstStyle'])
   const slideMasterTextStyles = warpObj['slideMasterTextStyles']
   let lvl = 1
   const pPrNode = pNode['a:pPr']
@@ -1456,7 +1457,8 @@ export function getSpanStyleInfo(node, pNode, textBodyNode, pFontStyle, slideLay
   const lvlNode = getTextByPathList(pPrNode, ['attrs', 'lvl'])
   if (lvlNode !== undefined) lvl = parseInt(lvlNode) + 1
 
-  let text = node['a:t']
+  // let text = node['a:t']
+  let text = getTextByPathList(node, ['a:t'])
   if (typeof text !== 'string') text = getTextByPathList(node, ['a:fld', 'a:t'])
   // if (typeof text !== 'string') text = '&nbsp;'
   if (typeof text !== 'string') text = ' '

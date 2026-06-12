@@ -3,7 +3,7 @@ import { applyTint } from './color'
 import { getShadow } from './shadow'
 import { getGlow, getSoftEdge } from './glow'
 import { getBorder } from './border'
-import { genTextBody } from './text'
+import { genTextBody, getSpanStyleInfo } from './text'
 import { getSolidFill, getGradientFill } from './fill'
 
 function extractChartColors(serNode, warpObj) {
@@ -29,12 +29,22 @@ function extractChartColors(serNode, warpObj) {
     // schemeClrs.push(clr)
 
     {
+      const seriesColorObj = {
+        solidFill: getSolidFill(getTextByPathList(node, ['c:spPr', 'a:solidFill']), undefined, undefined, warpObj),
+        lnSolidFill: getSolidFill(getTextByPathList(node, ['c:spPr', 'a:ln', 'a:solidFill']), undefined, undefined, warpObj),
+        markerLnSolidFill: getSolidFill(getTextByPathList(node, ['c:marker', 'c:spPr', 'a:ln', 'a:solidFill']), undefined, undefined, warpObj),
+        gradFill: getGradientFill(getTextByPathList(node, ['c:spPr', 'a:gradFill']), warpObj),
+        lnGradFill: getGradientFill(getTextByPathList(node, ['c:spPr', 'a:ln', 'a:gradFill']), warpObj),
+        markerLnGradFill: getGradientFill(getTextByPathList(node, ['c:marker', 'c:spPr', 'a:ln', 'a:gradFill']), warpObj),
+      }
+      // console.log('(00)-pptxtojson-[chartEL]:-analysis-[schemeClr]-seriesColorObj:', seriesColorObj)
+
       let schemeClr = getTextByPathList(node, ['c:spPr', 'a:solidFill'])
       if (!schemeClr) schemeClr = getTextByPathList(node, ['c:spPr', 'a:ln', 'a:solidFill'])
       if (!schemeClr) schemeClr = getTextByPathList(node, ['c:marker', 'c:spPr', 'a:ln', 'a:solidFill'])
     
       let clr = ''
-      console.log('(00)-pptxtojson-[chartEL]:-analysis-[schemeClr]-node:', node)
+      console.log('(00)-pptxtojson-[chartEL]:-analysis-[schemeClr]-node:', node, schemeClr)
 
       const clrObj = {}
 
@@ -42,8 +52,8 @@ function extractChartColors(serNode, warpObj) {
         clrObj.type = 'color'
         clrObj.value = getSolidFill(schemeClr, undefined, undefined, warpObj)
       }
-
-      if (JSON.stringify(clrObj) === '{}') {
+      const abs = true
+      if (JSON.stringify(clrObj) === '{}' || abs) {
         // 颜色获取失败，考虑获取渐变色
         let schemeClrINfoObj = getTextByPathList(node, ['c:spPr', 'a:gradFill'])
         if (!schemeClrINfoObj) schemeClrINfoObj = getTextByPathList(node, ['c:spPr', 'a:ln', 'a:gradFill'])
@@ -56,6 +66,7 @@ function extractChartColors(serNode, warpObj) {
       }
 
       clr = clrObj
+      clr.seriesColorObj = seriesColorObj
       schemeClrs.push(clr)
       console.log('(00)-pptxtojson-[chartEL]:-analysis-[schemeClr]:', schemeClr)
     }
@@ -65,7 +76,7 @@ function extractChartColors(serNode, warpObj) {
   return schemeClrs
 }
 
-function extractChartData(serNode, warpObj, source) {
+function extractChartData(serNode, warpObj, source, otherParams) {
   const dataMat = []
   if (!serNode) return dataMat
 
@@ -132,7 +143,7 @@ function extractChartData(serNode, warpObj, source) {
       // c:dLbls
       const dLblsNode = getTextByPathList(innerNode, ['c:dLbls'])
       // if (dLblsNode) spPr.dLblsNode = dLblsNode
-      if (dLblsNode) spPr.dLbls = getDLblsInfo(dLblsNode, warpObj, source)
+      if (dLblsNode) spPr.dLbls = getDLblsInfo(dLblsNode, warpObj, source, otherParams)
       //
       // console.log('(00)-pptxtojson-[chartEL]:-anylisChart-spPr:', spPr)
 
@@ -151,7 +162,7 @@ function extractChartData(serNode, warpObj, source) {
   return dataMat
 }
 
-function getDLblsInfo(node, warpObj, source) {
+function getDLblsInfo(node, warpObj, source, otherParams) {
   const dLblsInfo = {}
   for (const key in node) {
     const curNode = node[`${key}`]
@@ -173,8 +184,27 @@ function getDLblsInfo(node, warpObj, source) {
         case 'c:txPr':
           const dealUseObj = {}
           dealUseObj[`p:txBody`] = curNode
+          console.log('(00)-pptxtojson-[chartEL]:-analysis-[schemeClr]-get-txPr:-curNode:', curNode)
+          const {
+            slideLayoutSpNode, 
+            slideMasterSpNode
+          } = otherParams 
+          // const pFontStyle = getTextByPathList(spNode, ['p:style', 'a:fontRef'])
+          // const pNode = textBodyNode['a:p']
+          // getSpanStyleInfo(rNodeItem, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, type, warpObj)
+          const pFontStyle = null
+          const schemeClr = getTextByPathList(curNode, ['a:p', 'a:pPr', 'a:defRPr', 'a:solidFill'])
+          const textFill = getSolidFill(schemeClr, undefined, undefined, warpObj)
+          console.log('(00)-pptxtojson-[chartEL]:-analysis-[schemeClr]-get-txPr:-schemeClr:', schemeClr, textFill)
+          const pNode = getTextByPathList(curNode, ['a:p']) 
+          const styleObj = getSpanStyleInfo(null, pNode, curNode, pFontStyle, slideLayoutSpNode, slideMasterSpNode, undefined, warpObj)
+          console.log('(00)-pptxtojson-[chartEL]:-analysis-[schemeClr]-get-txPr:-styleObj:', styleObj)
           const text = genTextBody(dealUseObj['p:txBody'], dealUseObj, undefined, undefined, undefined, warpObj)
-          dLblsInfo.txPr = text
+          dLblsInfo.txPr = {
+            text,
+            textColor: textFill,
+            styleObj
+          }
           break
       
         default:
@@ -186,7 +216,7 @@ function getDLblsInfo(node, warpObj, source) {
   return dLblsInfo 
 }
 
-export function getChartInfo(plotArea, warpObj, source) {
+export function getChartInfo(plotArea, warpObj, source, otherParams) {
   let chart = null
   for (const key in plotArea) {
     console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[key]:', key)
@@ -194,7 +224,7 @@ export function getChartInfo(plotArea, warpObj, source) {
       case 'c:lineChart':
         chart = {
           type: 'lineChart',
-          data: extractChartData(plotArea[key]['c:ser'], warpObj, source),
+          data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser'], warpObj),
           grouping: getTextByPathList(plotArea[key], ['c:grouping', 'attrs', 'val']),
           marker: plotArea[key]['c:marker'] ? true : false,
@@ -203,7 +233,7 @@ export function getChartInfo(plotArea, warpObj, source) {
       case 'c:line3DChart':
         chart = {
           type: 'line3DChart',
-          data: extractChartData(plotArea[key]['c:ser'], warpObj, source),
+          data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser'], warpObj),
           grouping: getTextByPathList(plotArea[key], ['c:grouping', 'attrs', 'val']),
         }
@@ -211,7 +241,7 @@ export function getChartInfo(plotArea, warpObj, source) {
       case 'c:barChart':
         chart = {
           type: 'barChart',
-          data: extractChartData(plotArea[key]['c:ser'], warpObj, source),
+          data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser'], warpObj),
           grouping: getTextByPathList(plotArea[key], ['c:grouping', 'attrs', 'val']),
           barDir: getTextByPathList(plotArea[key], ['c:barDir', 'attrs', 'val']),
@@ -220,7 +250,7 @@ export function getChartInfo(plotArea, warpObj, source) {
       case 'c:bar3DChart':
         chart = {
           type: 'bar3DChart',
-          data: extractChartData(plotArea[key]['c:ser'], warpObj, source),
+          data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser'], warpObj),
           grouping: getTextByPathList(plotArea[key], ['c:grouping', 'attrs', 'val']),
           barDir: getTextByPathList(plotArea[key], ['c:barDir', 'attrs', 'val']),
@@ -229,21 +259,21 @@ export function getChartInfo(plotArea, warpObj, source) {
       case 'c:pieChart':
         chart = {
           type: 'pieChart',
-          data: extractChartData(plotArea[key]['c:ser'], warpObj, source),
+          data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser']['c:dPt'], warpObj),
         }
         break
       case 'c:pie3DChart':
         chart = {
           type: 'pie3DChart',
-          data: extractChartData(plotArea[key]['c:ser'], warpObj, source),
+          data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser']['c:dPt'], warpObj),
         }
         break
       case 'c:doughnutChart':
         chart = {
           type: 'doughnutChart',
-          data: extractChartData(plotArea[key]['c:ser'], warpObj, source),
+          data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser']['c:dPt'], warpObj),
           holeSize: getTextByPathList(plotArea[key], ['c:holeSize', 'attrs', 'val']),
         }
@@ -251,7 +281,7 @@ export function getChartInfo(plotArea, warpObj, source) {
       case 'c:areaChart':
         chart = {
           type: 'areaChart',
-          data: extractChartData(plotArea[key]['c:ser'], warpObj, source),
+          data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser'], warpObj),
           grouping: getTextByPathList(plotArea[key], ['c:grouping', 'attrs', 'val']),
         }
@@ -259,7 +289,7 @@ export function getChartInfo(plotArea, warpObj, source) {
       case 'c:area3DChart':
         chart = {
           type: 'area3DChart',
-          data: extractChartData(plotArea[key]['c:ser'], warpObj, source),
+          data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser'], warpObj),
           grouping: getTextByPathList(plotArea[key], ['c:grouping', 'attrs', 'val']),
         }
@@ -267,7 +297,7 @@ export function getChartInfo(plotArea, warpObj, source) {
       case 'c:scatterChart':
         chart = {
           type: 'scatterChart',
-          data: extractChartData(plotArea[key]['c:ser'], warpObj, source),
+          data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser'], warpObj),
           style: getTextByPathList(plotArea[key], ['c:scatterStyle', 'attrs', 'val']),
         }
@@ -275,14 +305,14 @@ export function getChartInfo(plotArea, warpObj, source) {
       case 'c:bubbleChart':
         chart = {
           type: 'bubbleChart',
-          data: extractChartData(plotArea[key]['c:ser'], warpObj, source),
+          data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser'], warpObj),
         }
         break
       case 'c:radarChart':
         chart = {
           type: 'radarChart',
-          data: extractChartData(plotArea[key]['c:ser'], warpObj, source),
+          data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser'], warpObj),
           style: getTextByPathList(plotArea[key], ['c:radarStyle', 'attrs', 'val']),
         }
@@ -290,21 +320,21 @@ export function getChartInfo(plotArea, warpObj, source) {
       case 'c:surfaceChart':
         chart = {
           type: 'surfaceChart',
-          data: extractChartData(plotArea[key]['c:ser'], warpObj, source),
+          data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser'], warpObj),
         }
         break
       case 'c:surface3DChart':
         chart = {
           type: 'surface3DChart',
-          data: extractChartData(plotArea[key]['c:ser'], warpObj, source),
+          data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser'], warpObj),
         }
         break
       case 'c:stockChart':
         chart = {
           type: 'stockChart',
-          data: extractChartData(plotArea[key]['c:ser'], warpObj, source),
+          data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: [],
         }
         break
@@ -320,7 +350,7 @@ export function getChartInfo(plotArea, warpObj, source) {
 
   const spPrNode = getTextByPathList(plotArea, ['c:spPr'])
   console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[spPrNode]:', spPrNode)
-  if (spPrNode && chart) chart.spPrNode = getPrInfo(spPrNode, warpObj, source)
+  if (spPrNode && chart) chart.plotAreaSpPrNode = getPrInfo(spPrNode, warpObj, source)
   console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[chart]:', chart)
 
   return chart
@@ -382,10 +412,7 @@ export function getChartLegend(cLegendNode, warpObj, source) {
   const legendInfo = {}
   warpObj
   // c:legend  c:legendPos
-  console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[cLegendNode]:', cLegendNode)
   for (const key in cLegendNode) {
-    // console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[key]:', key)
-    console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[key:value]:', key, cLegendNode[`${key}`])
     const curNode = cLegendNode[`${key}`]
     const curSubItemVal = getTextByPathList(curNode, ['attrs', 'val'])
     let isOnlyAttrs = true
@@ -433,7 +460,6 @@ export function getChartLegend(cLegendNode, warpObj, source) {
         default:
       }
     }
-    console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]-getChartLegend-[legendInfo]:', legendInfo)
 
   }
   // console.log('(00)-pptxtojson-[chartEL]:-genChart-[content]-getChartLegend-[legendInfo]111111111:', legendInfo)

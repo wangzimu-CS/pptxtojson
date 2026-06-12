@@ -243,6 +243,7 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
   if (themeFilename) {
     const themeName = themeFilename.split('/').pop()
     const themeResFileName = themeFilename.replace(themeName, '_rels/' + themeName) + '.rels'
+    console.log('(00)-pptxtojson-[chartEL]:-genChart-[refName]:-themeResFileName:', '【', themeResFileName, '】【', themeFilename, '】')
     const themeResContent = await readXmlFile(zip, themeResFileName)
     if (themeResContent) {
       relationshipArray = themeResContent['Relationships']['Relationship']
@@ -269,6 +270,7 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
   if (diagramFilename) {
     const diagName = diagramFilename.split('/').pop()
     const diagramResFileName = diagramFilename.replace(diagName, '_rels/' + diagName) + '.rels'
+    console.log('(00)-pptxtojson-[chartEL]:-genChart-[refName]:-diagramResFileName:', diagramResFileName)
     digramFileContent = await readXmlFile(zip, diagramFilename)
     if (digramFileContent) {
       const digramFileContentObjToStr = JSON.stringify(digramFileContent).replace(/dsp:/g, 'p:')
@@ -1940,33 +1942,126 @@ async function genChart(node, warpObj, source) {
   const { width, height } = getSize(xfrmNode, undefined, undefined)
 
   const rid = node['a:graphic']['a:graphicData']['c:chart']['attrs']['r:id']
-  console.log('(00)-pptxtojson-[chartEL]:-genChart-[rid]:', rid)
+  // console.log('(00)-pptxtojson-[chartEL]:-genChart-[rid]:', rid)
   let refName = getTextByPathList(warpObj['slideResObj'], [rid, 'target'])
   if (!refName) refName = getTextByPathList(warpObj['layoutResObj'], [rid, 'target'])
   if (!refName) refName = getTextByPathList(warpObj['masterResObj'], [rid, 'target'])
   if (!refName) return {}
 
+  const idx = getTextByPathList(node, ['p:nvSpPr', 'p:nvPr', 'p:ph', 'attrs', 'idx'])
+  const type = getTextByPathList(node, ['p:nvSpPr', 'p:nvPr', 'p:ph', 'attrs', 'type'])
+
+  let slideLayoutSpNode, slideMasterSpNode
+
+  if (type) {
+    if (idx) {
+      slideLayoutSpNode = warpObj['slideLayoutTables']['idxTable'][idx]
+      slideMasterSpNode = warpObj['slideMasterTables']['idxTable'][idx]
+      if (!slideLayoutSpNode) slideLayoutSpNode = warpObj['slideLayoutTables']['typeTable'][type]
+      if (!slideMasterSpNode) slideMasterSpNode = warpObj['slideMasterTables']['typeTable'][type]
+    }
+    else {
+      slideLayoutSpNode = warpObj['slideLayoutTables']['typeTable'][type]
+      slideMasterSpNode = warpObj['slideMasterTables']['typeTable'][type]
+    }
+  }
+  else if (idx) {
+    slideLayoutSpNode = warpObj['slideLayoutTables']['idxTable'][idx]
+    slideMasterSpNode = warpObj['slideMasterTables']['idxTable'][idx]
+  }
+  let orithemeElements = null
+  if (refName) {
+    const themeName = refName.split('/').pop()
+    const dealSamePathFilePath = (target) => {
+      if (!target.includes('/')) {
+        return refName.replace(themeName, '') + target
+      }
+      return target
+    }
+    const getXMlFileContent = async (target) => {
+      // console.log('(00)-pptxtojson-[chartEL]:-genChart-get-[themeResObj]:-getXMlFileContent-target:', target)
+      const useTarget = dealSamePathFilePath(target)
+      // console.log('(00)-pptxtojson-[chartEL]:-genChart-get-[themeResObj]:-getXMlFileContent-useTarget:', useTarget)
+      if (!useTarget.endsWith('.xml')) return null
+      const content = await readXmlFile(warpObj['zip'], useTarget)
+      return content
+    }
+    const themeResFileName = refName.replace(themeName, '_rels/' + themeName) + '.rels'
+    const themeResContent = await readXmlFile(warpObj['zip'], themeResFileName)
+    // console.log('(00)-pptxtojson-[chartEL]:-genChart-[refName]:-themeResFileName:', '【', themeResFileName, '】【', refName, '】【', themeResContent, '】', warpObj)
+    const themeResObj = {}
+    if (themeResContent) {
+      let relationshipArray = themeResContent['Relationships']['Relationship']
+      if (relationshipArray) {
+        if (relationshipArray.constructor !== Array) relationshipArray = [relationshipArray]
+        for (const relationshipArrayItem of relationshipArray) {
+          themeResObj[relationshipArrayItem['attrs']['Id']] = {
+            'type': relationshipArrayItem['attrs']['Type'].replace('http://schemas.openxmlformats.org/officeDocument/2006/relationships/', ''),
+            'target': dealSamePathFilePath(relationshipArrayItem['attrs']['Target'].replace('../', 'ppt/')),
+            'targetContent': await getXMlFileContent(relationshipArrayItem['attrs']['Target'].replace('../', 'ppt/'))
+          }
+        }
+      }
+    }
+    warpObj.themeResObj = themeResObj
+    // console.log('(00)-pptxtojson-[chartEL]:-genChart-get-[themeResObj,warpObj]:', themeResObj, warpObj)
+    // 获取图表主题
+    // const themeOverrideContent = Object.values(themeResObj).filter(item => item.type === 'themeOverride')
+    const themeOverrideContent = Object.values(themeResObj).find(item => item.type === 'themeOverride')
+    console.log('(00)-pptxtojson-[chartEL]:-genChart-get-[themeResObj,warpObj]:-themeOverrideContent', themeOverrideContent)
+    const contentObj = getTextByPathList(themeOverrideContent, ['targetContent', 'a:themeOverride'])
+    console.log('(00)-pptxtojson-[chartEL]:-genChart-get-[themeResObj,warpObj]:-contentObj:', contentObj)
+    if (contentObj && getTextByPathList(warpObj, ['themeContent', 'a:theme', 'a:themeElements'])) {
+      const themeElements = warpObj['themeContent']['a:theme']['a:themeElements']
+      orithemeElements = JSON.parse(JSON.stringify(themeElements))
+      warpObj['themeContent']['a:theme']['a:themeElements'] = {
+        ...warpObj['themeContent']['a:theme']['a:themeElements'],
+        ...contentObj
+      }
+    }
+    // for (const key in plotArea) {
+
+    // }
+  }
+
   const content = await readXmlFile(warpObj['zip'], refName)
   const plotArea = getTextByPathList(content, ['c:chartSpace', 'c:chart', 'c:plotArea'])
-  const chart = getChartInfo(plotArea, warpObj, source)
+  const otherParams = {
+    slideLayoutSpNode, 
+    slideMasterSpNode
+  }
+  const chart = getChartInfo(plotArea, warpObj, source, otherParams)
 
+  if (!chart) return {}
   const plotTitle = getTextByPathList(content, ['c:chartSpace', 'c:chart', 'c:title'])
   const chartTitleInfo = getChartTitle(plotTitle, warpObj, source)
   const plotLegend = getTextByPathList(content, ['c:chartSpace', 'c:chart', 'c:legend'])
-  console.log('(00)-pptxtojson-[chartEL]:-genChart-[plotLegend]:', plotLegend)
-  const chartLegendInfo = getChartLegend(plotLegend, warpObj, source)
+  // console.log('(00)-pptxtojson-[chartEL]:-genChart-[refName]:', refName)  
+  const blipFill = getTextByPathList(content, ['c:chartSpace', 'c:spPr', 'a:blipFill'])
+  const picBase64 = await getPicFill('themeBg', blipFill, warpObj)
+  const background = {type: 'image', src: picBase64}
+  const importProperty = {
+    background,
+    plotAreaSpPr: chart ? chart.plotAreaSpPrNode : {},
+    chartTypeInfo: {
+      type: chart.type,
+      barDir: chart.barDir,
+      grouping: chart.grouping,
+    }
+  }
   
-
-  console.log('(00)-pptxtojson-[chartEL]:-genChart-[chart]:', chart)
-
-
-  if (!chart) return {}
-
+  const chartLegendInfo = getChartLegend(plotLegend, warpObj, source)
+  // console.log('(00)-pptxtojson-[chartEL]:-genChart-[chart]:', chart)
+  console.log('(00)-pptxtojson-[chartEL]:-genChart-[chart]-chart.type:', chart.type, chart)
+  if (orithemeElements) {
+    warpObj['themeContent']['a:theme']['a:themeElements'] = orithemeElements
+  }
   const data = {
     type: 'chart',
     title: chartTitleInfo,
     table: chart.chartTable,
-    spPrNode: chart.spPrNode,
+    spPrNode: chart.plotAreaSpPrNode,
+    importProperty,
     legend: chartLegendInfo,
     top,
     left,

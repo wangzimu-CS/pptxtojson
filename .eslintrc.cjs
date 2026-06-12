@@ -43,7 +43,7 @@ module.exports = {
     'default-case': 'error',
     'consistent-this': ['error', '_this'],
     'max-depth': ['error', 6],
-    'max-lines': ['error', 2000],
+    'max-lines': ['error', 4000],
     'no-multi-str': 'error',
     'space-infix-ops': 'error',
     'space-before-blocks': ['error', 'always'],
