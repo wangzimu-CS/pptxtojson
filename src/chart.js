@@ -123,30 +123,8 @@ function extractChartData(serNode, warpObj, source, otherParams) {
         })
       }
 
-      // console.log('(00)-pptxtojson-[chartEL]:-anylisChart-innerNode:', innerNode)
-      const spPr = {}
-      // c:spPr
-      const spPrNode = getTextByPathList(innerNode, ['c:spPr'])
-      if (spPrNode) spPr.spPrNode = getPrInfo(spPrNode, warpObj, source)
-      // c:smooth
-      const smoothNode = getTextByPathList(innerNode, ['c:smooth'])
-      if (smoothNode) {
-        const {val} = getNodeAttrsObj(smoothNode)
-        spPr.smooth = val === '1' ? true : false
-      }
-      // c:marker
-      const markerNode = getTextByPathList(innerNode, ['c:marker', 'c:symbol'])
-      if (markerNode) {
-        const {val} = getNodeAttrsObj(markerNode)
-        spPr.markerSymbol = val
-      }
-      // c:dLbls
-      const dLblsNode = getTextByPathList(innerNode, ['c:dLbls'])
-      // if (dLblsNode) spPr.dLblsNode = dLblsNode
-      if (dLblsNode) spPr.dLbls = getDLblsInfo(dLblsNode, warpObj, source, otherParams)
-      //
-      // console.log('(00)-pptxtojson-[chartEL]:-anylisChart-spPr:', spPr)
-
+      const spPr = getSeriesItemPr(innerNode, warpObj, source, otherParams)
+      console.log('(00)-pptxtojson-[chartEL]:-pie:-anylsis[spPr]:', spPr, innerNode, dataRow)
 
       dataMat.push({
         key: colName,
@@ -162,6 +140,85 @@ function extractChartData(serNode, warpObj, source, otherParams) {
   return dataMat
 }
 
+function getSeriesItemPr(innerNode, warpObj, source, otherParams) {
+  // console.log('(00)-pptxtojson-[chartEL]:-anylisChart-innerNode:', innerNode)
+  const spPr = {}
+  // c:spPr
+  const spPrNode = getTextByPathList(innerNode, ['c:spPr'])
+  if (spPrNode) spPr.spPrNode = getPrInfo(spPrNode, warpObj, source)
+  // c:smooth
+  const smoothNode = getTextByPathList(innerNode, ['c:smooth'])
+  if (smoothNode) {
+    const {val} = getNodeAttrsObj(smoothNode)
+    spPr.smooth = val === '1' ? true : false
+  }
+  // c:marker
+  const markerNode = getTextByPathList(innerNode, ['c:marker', 'c:symbol'])
+  if (markerNode) {
+    const {val} = getNodeAttrsObj(markerNode)
+    spPr.markerSymbol = val
+  }
+  // c:dLbls
+  const dLblsNode = getTextByPathList(innerNode, ['c:dLbls'])
+  // if (dLblsNode) spPr.dLblsNode = dLblsNode
+  if (dLblsNode) spPr.dLbls = getDLblsInfo(dLblsNode, warpObj, source, otherParams)
+  //
+  // console.log('(00)-pptxtojson-[chartEL]:-anylisChart-spPr:', spPr)
+  const gapWidth = getTextByPathList(innerNode, ['c:gapWidth', 'attrs', 'val'])
+  if (gapWidth) spPr.gapWidth = Number(gapWidth)
+
+  const overlap = getTextByPathList(innerNode, ['c:overlap', 'attrs', 'val'])
+  if (overlap) spPr.overlap = Number(overlap)
+    
+  const dPt = getTextByPathList(innerNode, ['c:dPt'])
+  if (dPt && Array.isArray(dPt)) {
+    // spPr.dPt = Number(dPt)
+    for (const index in dPt) {
+      const item = dPt[index]
+    }
+  }
+  console.log('(00)-pptxtojson-[chartEL]:-pie:-anylsis[dPt]:', dPt)
+    
+}
+
+function getChartPr(chartNode, warpObj, source, otherParams, plotArea) {
+  console.log('(00)-pptxtojson-[chartEL]:-serNode:', chartNode)
+  console.log('(00)-pptxtojson-[chartEL]:-serNode:-plotArea:', plotArea)
+
+  if (!chartNode) return null
+  
+  // console.log('(00)-pptxtojson-[chartEL]:-anylisChart-innerNode:', innerNode)
+  const innerNode = chartNode
+  const spPr = {}
+  // c:spPr
+  const spPrNode = getTextByPathList(innerNode, ['c:spPr'])
+  if (spPrNode) spPr.spPrNode = getPrInfo(spPrNode, warpObj, source)
+  // c:smooth
+  const smoothNode = getTextByPathList(innerNode, ['c:smooth'])
+  if (smoothNode) {
+    const {val} = getNodeAttrsObj(smoothNode)
+    spPr.smooth = val === '1' ? true : false
+  }
+  // c:marker
+  const markerNode = getTextByPathList(innerNode, ['c:marker', 'c:symbol'])
+  if (markerNode) {
+    const {val} = getNodeAttrsObj(markerNode)
+    spPr.markerSymbol = val
+  }
+  // c:dLbls
+  const dLblsNode = getTextByPathList(innerNode, ['c:dLbls'])
+  // if (dLblsNode) spPr.dLblsNode = dLblsNode
+  if (dLblsNode) spPr.dLbls = getDLblsInfo(dLblsNode, warpObj, source, otherParams)
+  // console.log('(00)-pptxtojson-[chartEL]:-anylisChart-spPr:', spPr)
+  const gapWidth = getTextByPathList(innerNode, ['c:gapWidth', 'attrs', 'val'])
+  if (gapWidth) spPr.gapWidth = Number(gapWidth)
+
+  const overlap = getTextByPathList(innerNode, ['c:overlap', 'attrs', 'val'])
+  if (overlap) spPr.overlap = Number(overlap)
+
+  console.log('(00)-pptxtojson-[chartEL]:-serNode:--result:', spPr)
+  return spPr  
+}
 function getDLblsInfo(node, warpObj, source, otherParams) {
   const dLblsInfo = {}
   for (const key in node) {
@@ -220,6 +277,7 @@ export function getChartInfo(plotArea, warpObj, source, otherParams) {
   let chart = null
   for (const key in plotArea) {
     console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[key]:', key)
+    let isChartKey = true
     switch (key) {
       case 'c:lineChart':
         chart = {
@@ -339,7 +397,9 @@ export function getChartInfo(plotArea, warpObj, source, otherParams) {
         }
         break
       default:
+        isChartKey = false
     }
+    if (isChartKey) chart.chartPr = getChartPr(plotArea[key], warpObj, source, otherParams, plotArea)
   }
   // 其它属性解析
   // console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[plotArea]:', plotArea)

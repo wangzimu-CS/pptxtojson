@@ -2047,7 +2047,8 @@ async function genChart(node, warpObj, source) {
       type: chart.type,
       barDir: chart.barDir,
       grouping: chart.grouping,
-    }
+    },
+    chartPr: chart.chartPr
   }
   
   const chartLegendInfo = getChartLegend(plotLegend, warpObj, source)
