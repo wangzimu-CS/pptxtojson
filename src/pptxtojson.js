@@ -121,6 +121,7 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
   const resContent = await readXmlFile(zip, resName)
   let relationshipArray = resContent['Relationships']['Relationship']
   if (relationshipArray.constructor !== Array) relationshipArray = [relationshipArray]
+
   
   let noteFilename = ''
   let layoutFilename = ''
@@ -137,6 +138,10 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
   for (const relationshipArrayItem of relationshipArray) {
     const relType = relationshipArrayItem['attrs']['Type'].replace('http://schemas.openxmlformats.org/officeDocument/2006/relationships/', '')
     let relTarget = relationshipArrayItem['attrs']['Target']
+    if (relType.includes('/www.wps.cn')) {
+      console.log('(00)-pptxtojson-[chartEL]:-pie:-an:--relTarget:', relTarget)
+      console.log('(00)-pptxtojson-[chartEL]:-pie:-an:--relType:', relType)
+    }
     const isExternal = relationshipArrayItem['attrs']['TargetMode'] === 'External'
     if (!isExternal) {
       if (relTarget.indexOf('../') !== -1) relTarget = relTarget.replace('../', 'ppt/')
@@ -179,6 +184,10 @@ async function processSingleSlide(zip, sldFileName, themeContent, defaultTextSty
       case 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart':
       case 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink':
       default:
+        if (relType.includes('/www.wps.cn')) {
+          const wpsOBJ = await readXmlFile(zip, relTarget)
+          console.log('(00)-pptxtojson-[chartEL]:-pie:-an:--wpsOBJ:', wpsOBJ)
+        }
         slideResObj[relationshipArrayItem['attrs']['Id']] = {
           type: relType,
           target: relTarget,
@@ -700,6 +709,7 @@ async function processNodesInSlide(nodeKey, nodeValue, warpObj, source, groupHie
       break
     case 'p:pic': // Image, Video, Audio
       json = await processPicNode(nodeValue, warpObj, source)
+      console.log('(00)-pptxtojson-[chartEL]:-pie:-an:-p:pic-nodeValue:', nodeValue)
       break
     case 'p:graphicFrame': // Chart, Diagram, Table
       json = await processGraphicFrameNode(nodeValue, warpObj, source)
@@ -1988,6 +1998,7 @@ async function genChart(node, warpObj, source) {
     }
     const themeResFileName = refName.replace(themeName, '_rels/' + themeName) + '.rels'
     const themeResContent = await readXmlFile(warpObj['zip'], themeResFileName)
+    console.log('(00)-pptxtojson-[chartEL]:-pie:-an:--themeResObj-warpObj:', warpObj)
     // console.log('(00)-pptxtojson-[chartEL]:-genChart-[refName]:-themeResFileName:', '【', themeResFileName, '】【', refName, '】【', themeResContent, '】', warpObj)
     const themeResObj = {}
     if (themeResContent) {
@@ -2000,9 +2011,11 @@ async function genChart(node, warpObj, source) {
             'target': dealSamePathFilePath(relationshipArrayItem['attrs']['Target'].replace('../', 'ppt/')),
             'targetContent': await getXMlFileContent(relationshipArrayItem['attrs']['Target'].replace('../', 'ppt/'))
           }
+          console.log('(00)-pptxtojson-[chartEL]:-pie:-an:--themeResObj:', relationshipArrayItem['attrs']['Id'], '--:', themeResObj[relationshipArrayItem['attrs']['Id']])
         }
       }
     }
+
     warpObj.themeResObj = themeResObj
     // console.log('(00)-pptxtojson-[chartEL]:-genChart-get-[themeResObj,warpObj]:', themeResObj, warpObj)
     // 获取图表主题

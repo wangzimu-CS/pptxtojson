@@ -124,7 +124,7 @@ function extractChartData(serNode, warpObj, source, otherParams) {
       }
 
       const spPr = getSeriesItemPr(innerNode, warpObj, source, otherParams)
-      console.log('(00)-pptxtojson-[chartEL]:-pie:-anylsis[spPr]:', spPr, innerNode, dataRow)
+      console.log('(00)-pptxtojson-[chartEL]:-pie:-anylsis[spPr]:', spPr)
 
       dataMat.push({
         key: colName,
@@ -173,11 +173,37 @@ function getSeriesItemPr(innerNode, warpObj, source, otherParams) {
   const dPt = getTextByPathList(innerNode, ['c:dPt'])
   if (dPt && Array.isArray(dPt)) {
     // spPr.dPt = Number(dPt)
+    spPr.dPt = []
     for (const index in dPt) {
-      const item = dPt[index]
+      const itemNode = dPt[index]
+      const itemNodeInfo = {}
+      for (const key in itemNode) {
+        const curNode = itemNode[`${key}`]
+        const curSubItemVal = getTextByPathList(curNode, ['attrs', 'val'])
+        let isOnlyAttrs = true
+        for (const subKey in curNode) {
+          if (subKey !== 'attrs') isOnlyAttrs = false ; break
+        }
+        if (curSubItemVal && key.includes('c:') && isOnlyAttrs) {
+          itemNodeInfo[`${key.replace('c:', '')}`] = curSubItemVal
+        }
+        else if (!isOnlyAttrs && key.includes('c:')) {
+          switch (key) {
+            case 'c:spPr':
+              if (curNode) itemNodeInfo.spPr = getPrInfo(curNode, warpObj, source)
+              break
+
+            default:
+              break
+          }
+        }
+
+      }
+      spPr.dPt.push({...itemNodeInfo})
     }
   }
-  console.log('(00)-pptxtojson-[chartEL]:-pie:-anylsis[dPt]:', dPt)
+  // console.log('(00)-pptxtojson-[chartEL]:-pie:-anylsis[dPt]-spPr.dPt:', spPr.dPt)
+  return spPr
     
 }
 
@@ -276,7 +302,8 @@ function getDLblsInfo(node, warpObj, source, otherParams) {
 export function getChartInfo(plotArea, warpObj, source, otherParams) {
   let chart = null
   for (const key in plotArea) {
-    console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[key]:', key)
+    // console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[key]:', key)
+    if (key.includes('Chart')) console.log('(00)-pptxtojson-[chartEL]:-pie:-anylsis[spPr]-getChartInfo-[key]:', key)
     let isChartKey = true
     switch (key) {
       case 'c:lineChart':
@@ -322,6 +349,13 @@ export function getChartInfo(plotArea, warpObj, source, otherParams) {
         }
         break
       case 'c:pie3DChart':
+        chart = {
+          type: 'pie3DChart',
+          data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
+          colors: extractChartColors(plotArea[key]['c:ser']['c:dPt'], warpObj),
+        }
+        break
+      case 'c:ofPieChart':
         chart = {
           type: 'pie3DChart',
           data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
