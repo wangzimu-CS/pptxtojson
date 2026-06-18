@@ -3,6 +3,7 @@ import { readXmlFile, simplifyLostLess } from './readXmlFile'
 import { getBorder } from './border'
 import { getSlideBackgroundFill, getShapeFill, getSolidFill, getPicFill, getPicFilters, dealGradientFill, getPicFillOpacity } from './fill'
 import { getChartInfo, getChartTitle, getChartLegend } from './chart'
+import { extractProperties } from './chart_wps'
 import { getVerticalAlign, getTextAutoFit } from './align'
 import { getPosition, getSize } from './position'
 import { genTextBody } from './text'
@@ -710,6 +711,33 @@ async function processNodesInSlide(nodeKey, nodeValue, warpObj, source, groupHie
     case 'p:pic': // Image, Video, Audio
       json = await processPicNode(nodeValue, warpObj, source)
       console.log('(00)-pptxtojson-[chartEL]:-pie:-an:-p:pic-nodeValue:', nodeValue)
+      const webExtensionRefNode = getTextByPathList(nodeValue, ['p:spPr', 'a:extLst', 'a:ext', 'wpswe:webExtensionRef', 'attrs'])
+      console.log('(00)-pptxtojson-[chartEL]:-pie:-an:-p:pic-nodeValue:-extNode:', webExtensionRefNode, warpObj)
+      if (webExtensionRefNode) {
+        const rid = getTextByPathList(webExtensionRefNode, ['r:id'])
+        if (rid) {
+          //
+          const slideResObj = getTextByPathList(warpObj, ['slideResObj'])
+          const targetNode = getTextByPathList(slideResObj, [`${rid}`])
+          console.log('(00)-pptxtojson-[chartEL]:-pie:-an:-p:pic-nodeValue:-extNode:-rid-slideResObj:', rid, slideResObj)
+          console.log('(00)-pptxtojson-[chartEL]:-pie:-an:-p:pic-nodeValue:-extNode:-rid:', rid, targetNode)
+          const {type, target} = targetNode
+          if (type.includes('/www.wps.cn')) {
+            const useTarget = target.replace('..', 'ppt')
+            const targetNode = await readXmlFile(warpObj['zip'], useTarget)
+            console.log('(00)-pptxtojson-[chartEL]:-pie:-an:-p:pic-nodeValue:-extNode:-targetNode:', targetNode)
+            const exTensionId = getTextByPathList(targetNode, ['wpswe:webExtension', 'wpswe:extSource', 'attrs', 'id'])
+            if (exTensionId === 'webchart') {
+              const dealNode = extractProperties(targetNode)
+              // json = genWPSWebChart(nodeValue, warpObj, source)
+              // json = genWPSWebChart(dealNode, warpObj, source)
+              // genWPSWebChart(dealNode, warpObj, source)
+              const genWPSWebChartNode = genWPSWebChart(json, dealNode)
+              console.log('(00)-pptxtojson-[chartEL]:-pie:-an:-p:pic-nodeValue:-extNode:-dealNode:', dealNode, targetNode, genWPSWebChartNode)
+            }
+          }
+        }
+      }
       break
     case 'p:graphicFrame': // Chart, Diagram, Table
       json = await processGraphicFrameNode(nodeValue, warpObj, source)
@@ -760,6 +788,7 @@ async function processNodesInSlide(nodeKey, nodeValue, warpObj, source, groupHie
   }
   return json
 }
+
 
 async function processMathNode(node, warpObj, source) {
   const choice = getTextByPathList(node, ['mc:Choice'])
@@ -2092,7 +2121,369 @@ async function genChart(node, warpObj, source) {
   if (chart.grouping !== undefined) data.grouping = chart.grouping
   if (chart.style !== undefined) data.style = chart.style
 
+  console.log('(00)-pptxtojson-[chartEL]:-pie:-an:-p:pic-nodeValue:-extNode:-dealNode:-data:', data)
   return data
+}
+// async function genWPSWebChart(node, warpObj, source) {
+//   const order = node['attrs']['order']
+//   const xfrmNode = getTextByPathList(node, ['p:xfrm'])
+//   const { top, left } = getPosition(xfrmNode, undefined, undefined)
+//   const { width, height } = getSize(xfrmNode, undefined, undefined)
+
+//   const rid = node['a:graphic']['a:graphicData']['c:chart']['attrs']['r:id']
+//   // console.log('(00)-pptxtojson-[chartEL]:-genChart-[rid]:', rid)
+//   let refName = getTextByPathList(warpObj['slideResObj'], [rid, 'target'])
+//   if (!refName) refName = getTextByPathList(warpObj['layoutResObj'], [rid, 'target'])
+//   if (!refName) refName = getTextByPathList(warpObj['masterResObj'], [rid, 'target'])
+//   if (!refName) return {}
+
+//   const idx = getTextByPathList(node, ['p:nvSpPr', 'p:nvPr', 'p:ph', 'attrs', 'idx'])
+//   const type = getTextByPathList(node, ['p:nvSpPr', 'p:nvPr', 'p:ph', 'attrs', 'type'])
+
+//   let slideLayoutSpNode, slideMasterSpNode
+
+//   if (type) {
+//     if (idx) {
+//       slideLayoutSpNode = warpObj['slideLayoutTables']['idxTable'][idx]
+//       slideMasterSpNode = warpObj['slideMasterTables']['idxTable'][idx]
+//       if (!slideLayoutSpNode) slideLayoutSpNode = warpObj['slideLayoutTables']['typeTable'][type]
+//       if (!slideMasterSpNode) slideMasterSpNode = warpObj['slideMasterTables']['typeTable'][type]
+//     }
+//     else {
+//       slideLayoutSpNode = warpObj['slideLayoutTables']['typeTable'][type]
+//       slideMasterSpNode = warpObj['slideMasterTables']['typeTable'][type]
+//     }
+//   }
+//   else if (idx) {
+//     slideLayoutSpNode = warpObj['slideLayoutTables']['idxTable'][idx]
+//     slideMasterSpNode = warpObj['slideMasterTables']['idxTable'][idx]
+//   }
+//   let orithemeElements = null
+//   if (refName) {
+//     const themeName = refName.split('/').pop()
+//     const dealSamePathFilePath = (target) => {
+//       if (!target.includes('/')) {
+//         return refName.replace(themeName, '') + target
+//       }
+//       return target
+//     }
+//     const getXMlFileContent = async (target) => {
+//       // console.log('(00)-pptxtojson-[chartEL]:-genChart-get-[themeResObj]:-getXMlFileContent-target:', target)
+//       const useTarget = dealSamePathFilePath(target)
+//       // console.log('(00)-pptxtojson-[chartEL]:-genChart-get-[themeResObj]:-getXMlFileContent-useTarget:', useTarget)
+//       if (!useTarget.endsWith('.xml')) return null
+//       const content = await readXmlFile(warpObj['zip'], useTarget)
+//       return content
+//     }
+//     const themeResFileName = refName.replace(themeName, '_rels/' + themeName) + '.rels'
+//     const themeResContent = await readXmlFile(warpObj['zip'], themeResFileName)
+//     console.log('(00)-pptxtojson-[chartEL]:-pie:-an:--themeResObj-warpObj:', warpObj)
+//     // console.log('(00)-pptxtojson-[chartEL]:-genChart-[refName]:-themeResFileName:', '【', themeResFileName, '】【', refName, '】【', themeResContent, '】', warpObj)
+//     const themeResObj = {}
+//     if (themeResContent) {
+//       let relationshipArray = themeResContent['Relationships']['Relationship']
+//       if (relationshipArray) {
+//         if (relationshipArray.constructor !== Array) relationshipArray = [relationshipArray]
+//         for (const relationshipArrayItem of relationshipArray) {
+//           themeResObj[relationshipArrayItem['attrs']['Id']] = {
+//             'type': relationshipArrayItem['attrs']['Type'].replace('http://schemas.openxmlformats.org/officeDocument/2006/relationships/', ''),
+//             'target': dealSamePathFilePath(relationshipArrayItem['attrs']['Target'].replace('../', 'ppt/')),
+//             'targetContent': await getXMlFileContent(relationshipArrayItem['attrs']['Target'].replace('../', 'ppt/'))
+//           }
+//           console.log('(00)-pptxtojson-[chartEL]:-pie:-an:--themeResObj:', relationshipArrayItem['attrs']['Id'], '--:', themeResObj[relationshipArrayItem['attrs']['Id']])
+//         }
+//       }
+//     }
+
+//     warpObj.themeResObj = themeResObj
+//     // console.log('(00)-pptxtojson-[chartEL]:-genChart-get-[themeResObj,warpObj]:', themeResObj, warpObj)
+//     // 获取图表主题
+//     // const themeOverrideContent = Object.values(themeResObj).filter(item => item.type === 'themeOverride')
+//     const themeOverrideContent = Object.values(themeResObj).find(item => item.type === 'themeOverride')
+//     console.log('(00)-pptxtojson-[chartEL]:-genChart-get-[themeResObj,warpObj]:-themeOverrideContent', themeOverrideContent)
+//     const contentObj = getTextByPathList(themeOverrideContent, ['targetContent', 'a:themeOverride'])
+//     console.log('(00)-pptxtojson-[chartEL]:-genChart-get-[themeResObj,warpObj]:-contentObj:', contentObj)
+//     if (contentObj && getTextByPathList(warpObj, ['themeContent', 'a:theme', 'a:themeElements'])) {
+//       const themeElements = warpObj['themeContent']['a:theme']['a:themeElements']
+//       orithemeElements = JSON.parse(JSON.stringify(themeElements))
+//       warpObj['themeContent']['a:theme']['a:themeElements'] = {
+//         ...warpObj['themeContent']['a:theme']['a:themeElements'],
+//         ...contentObj
+//       }
+//     }
+//     // for (const key in plotArea) {
+
+//     // }
+//   }
+
+//   const content = await readXmlFile(warpObj['zip'], refName)
+//   const plotArea = getTextByPathList(content, ['c:chartSpace', 'c:chart', 'c:plotArea'])
+//   const otherParams = {
+//     slideLayoutSpNode, 
+//     slideMasterSpNode
+//   }
+//   const chart = getChartInfo(plotArea, warpObj, source, otherParams)
+
+//   if (!chart) return {}
+//   const plotTitle = getTextByPathList(content, ['c:chartSpace', 'c:chart', 'c:title'])
+//   const chartTitleInfo = getChartTitle(plotTitle, warpObj, source)
+//   const plotLegend = getTextByPathList(content, ['c:chartSpace', 'c:chart', 'c:legend'])
+//   // console.log('(00)-pptxtojson-[chartEL]:-genChart-[refName]:', refName)  
+//   const blipFill = getTextByPathList(content, ['c:chartSpace', 'c:spPr', 'a:blipFill'])
+//   const picBase64 = await getPicFill('themeBg', blipFill, warpObj)
+//   const background = {type: 'image', src: picBase64}
+//   const importProperty = {
+//     background,
+//     plotAreaSpPr: chart ? chart.plotAreaSpPrNode : {},
+//     chartTypeInfo: {
+//       type: chart.type,
+//       barDir: chart.barDir,
+//       grouping: chart.grouping,
+//     },
+//     chartPr: chart.chartPr
+//   }
+  
+//   const chartLegendInfo = getChartLegend(plotLegend, warpObj, source)
+//   // console.log('(00)-pptxtojson-[chartEL]:-genChart-[chart]:', chart)
+//   console.log('(00)-pptxtojson-[chartEL]:-genChart-[chart]-chart.type:', chart.type, chart)
+//   if (orithemeElements) {
+//     warpObj['themeContent']['a:theme']['a:themeElements'] = orithemeElements
+//   }
+//   const data = {
+//     type: 'chart',
+//     title: chartTitleInfo,
+//     table: chart.chartTable,
+//     spPrNode: chart.plotAreaSpPrNode,
+//     importProperty,
+//     legend: chartLegendInfo,
+//     top,
+//     left,
+//     width,
+//     height,
+//     data: chart.data,
+//     colors: chart.colors,
+//     chartType: chart.type,
+//     order,
+//   }
+//   if (chart.marker !== undefined) data.marker = chart.marker
+//   if (chart.barDir !== undefined) data.barDir = chart.barDir
+//   if (chart.holeSize !== undefined) data.holeSize = chart.holeSize
+//   if (chart.grouping !== undefined) data.grouping = chart.grouping
+//   if (chart.style !== undefined) data.style = chart.style
+//   console.log('(00)-pptxtojson-[chartEL]:-pie:-an:-p:pic-nodeValue:-extNode:-dealNode:-data:', data)
+//   return data
+// }
+
+/**
+ * 将 WPS 专有图表数据转为与 genChart 输出一致的格式
+ * @param {Object} picInfo  - 已解析的 p:pic 元素信息
+ * @param {Object} props    - extractProperties(webExtensionXML) 的结果
+ * @returns {Object|null}
+ */
+function genWPSWebChart(picInfo, props) {
+  if (!picInfo || !props) return null
+
+  const demoData = props.demoData
+  if (!demoData || !Array.isArray(demoData.data) || demoData.data.length < 2) return null
+
+  const style = props.style || {}
+  const extStyle = props.extStyle || {}
+  const wpsType = props.type || '2d-pie'
+
+  const DEFAULT_COLORS = ['#4874CB', '#EE822F', '#F2BA02', '#75BD42', '#30C0B4', '#E54C5E']
+  const colors = (style.seriesThemeColor || (props.sourceTheme || {}).colors || []).filter(Boolean)
+  if (!colors.length) colors.push(...DEFAULT_COLORS)
+
+  const TYPE_MAP = {
+    '2d-pie': 'pieChart',
+    '2d-bar': 'barChart',
+    '2d-line': 'lineChart',
+    '2d-polar': 'polarChart',
+    '2d-radar': 'radarChart',
+    '2d-scatter': 'scatterChart',
+    '2d-funnel': 'funnelChart',
+  }
+  const chartType = TYPE_MAP[wpsType] || 'customChart'
+
+  const rawData = demoData.data
+  const header = rawData[0] || []
+  const dataRows = rawData.slice(1)
+  const numSeries = Math.max(1, header.length - 1)
+
+  const noBorder = {
+    borderColor: '#000000',
+    borderWidth: 0,
+    borderType: 'solid',
+    strokeDasharray: '0',
+  }
+
+  // ---- spPrNode / plotAreaSpPr ----
+  const spPrNode = {
+    border: {
+      borderColor: picInfo.borderColor || '#000000',
+      borderWidth: picInfo.borderWidth || 0,
+      borderType: picInfo.borderType || 'solid',
+      strokeDasharray: String(picInfo.borderStrokeDasharray || '0'),
+    },
+  }
+
+  // ---- title ----
+  const titleConf = style.title || {}
+  const tts = titleConf.textStyle || {}
+  const titleFontFamily = (tts.fontFamily && tts.fontFamily.name) || (tts.font && tts.font.name) || 'Arial'
+  const titleFontSize = tts.fontSize || 14
+  const titleFontWeight = tts.fontWeight || 'bold'
+
+  let title = {}
+  if (titleConf.show !== false && titleConf.text) {
+    title = {
+      text:
+        '<p style="text-align: center;line-height: 1;margin: 0; padding: 0;">' +
+        '<span style="font-size: ' + titleFontSize + 'pt;font-family: ' + titleFontFamily + ';' +
+        'font-weight: ' + titleFontWeight + '; line-break: strict; overflow-wrap: break-word; white-space: pre-wrap;">' +
+        titleConf.text + '</span></p>',
+      layout: { xMode: 'edge', yMode: 'edge', x: '0.5', y: '0' },
+      overlay: '0',
+      spPr: { border: noBorder },
+    }
+  }
+
+  // ---- legend ----
+  const legendConf = style.legend || {}
+  const LEGEND_POS = {
+    topCenter: 't',
+    bottomCenter: 'b',
+    topLeft: 'tl',
+    topRight: 'tr',
+    bottomLeft: 'bl',
+    bottomRight: 'br',
+    left: 'l',
+    right: 'r',
+    center: 'ctr',
+  }
+  const legend = {
+    legendPos: LEGEND_POS[legendConf.position] || 'b',
+    overlay: '0',
+    spPr: { border: noBorder },
+    textpr: {
+      'a:bodyPr': {
+        attrs: { rot: '0', vertOverflow: 'ellipsis', vert: 'horz', wrap: 'square', anchor: 'ctr', anchorCtr: '1' },
+      },
+      'a:lstStyle': { attrs: {} },
+      'a:p': {
+        'a:pPr': {
+          'a:defRPr': {
+            attrs: {
+              lang: 'zh-CN',
+              sz: String((legendConf.textStyle && legendConf.textStyle.fontSize) || 900),
+              b: '0', i: '0', u: 'none', strike: 'noStrike',
+            },
+          },
+          attrs: {},
+        },
+        attrs: {},
+      },
+      attrs: {},
+    },
+  }
+
+  // ---- data ----
+  const isMultiColor = style.isMultiColorScheme !== false
+  const extSeriesArr = Array.isArray(extStyle.series) ? extStyle.series : extStyle.series ? [extStyle.series] : []
+  const extSeries0 = extSeriesArr[0] || {}
+  const dPtBorderColor = (extSeries0.itemStyle && extSeries0.itemStyle.borderColor) || '#FFFFFF'
+  const dPtBorderWidth = (extSeries0.itemStyle && extSeries0.itemStyle.borderWidth) || 2
+
+  const chartData = []
+
+  for (let s = 0; s < numSeries; s++) {
+    const seriesName = header[s + 1] || '系列' + (s + 1)
+    const values = []
+    const xlabels = {}
+    const dPt = []
+
+    for (let i = 0; i < dataRows.length; i++) {
+      const rawVal = dataRows[i][s + 1]
+      const numVal = typeof rawVal === 'number' ? rawVal : parseFloat(rawVal) || 0
+      values.push({ x: String(i), y: numVal })
+      xlabels[String(i)] = String(dataRows[i][0] || '类别' + i)
+
+      const colorIdx = isMultiColor ? i : s
+      dPt.push({
+        idx: String(i),
+        bubble3D: '0',
+        spPr: {
+          border: {
+            borderColor: dPtBorderColor,
+            borderWidth: dPtBorderWidth,
+            borderType: 'solid',
+            strokeDasharray: '0',
+          },
+          fill: { type: 'color', value: colors[colorIdx % colors.length] },
+        },
+      })
+    }
+
+    chartData.push({
+      key: seriesName,
+      values,
+      xlabels,
+      spPr: {
+        spPrNode: { border: noBorder },
+        dLbls: { delete: !(style.label && style.label.show) },
+        dPt,
+      },
+    })
+  }
+
+  // ---- importProperty ----
+  const dLbls = {
+    showLegendKey: false,
+    showVal: !!(style.label && style.label.show),
+    showCatName: false,
+    showSerName: false,
+    showPercent: false,
+    showBubbleSize: false,
+    showLeaderLines: true,
+    delete: !(style.label && style.label.show),
+  }
+
+  const importProperty = {
+    background: { type: 'image', src: picInfo.src || '' },
+    plotAreaSpPr: spPrNode,
+    chartTypeInfo: {
+      type: chartType,
+      wpsChartType: wpsType,
+      wpsRenderer: props.renderer || 'echarts',
+    },
+    chartPr: { dLbls },
+  }
+
+  // ---- 组装 ----
+  const result = {
+    type: 'chart',
+    title,
+    spPrNode,
+    importProperty,
+    legend,
+    top: picInfo.top,
+    left: picInfo.left,
+    width: picInfo.width,
+    height: picInfo.height,
+    data: chartData,
+    chartType,
+    order: picInfo.order,
+    id: String(picInfo.id !== undefined && picInfo.id !== null ? picInfo.id : ''),
+  }
+
+  // 可选字段
+  if (wpsType === '2d-pie' && Array.isArray(style.radius) && parseInt(style.radius[0]) > 0) {
+    result.holeSize = parseInt(style.radius[0])
+  }
+  if (wpsType === '2d-bar') result.barDir = 'col'
+  if (wpsType === '2d-line') result.marker = true
+
+  return result
 }
 
 async function genDiagram(node, warpObj) {
