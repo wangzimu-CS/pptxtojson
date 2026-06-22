@@ -4,7 +4,7 @@ import { getShadow } from './shadow'
 import { getGlow, getSoftEdge } from './glow'
 import { getBorder } from './border'
 import { genTextBody, getSpanStyleInfo } from './text'
-import { getSolidFill, getGradientFill } from './fill'
+import { getSolidFill, getGradientFill, getShapeFill, getFillType, getPicFill, getPicFillOpacity } from './fill'
 
 function extractChartColors(serNode, warpObj) {
   if (serNode && serNode.constructor !== Array) serNode = [serNode]
@@ -587,7 +587,7 @@ function getChartTableInfo(dTableNode, warpObj, source) {
   return chartTable 
 }
 
-function getPrInfo(prNode, warpObj, source, tag = 'a:') {
+export async function getPrInfo(prNode, warpObj, source, tag = 'a:') {
   tag
   console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-getPrInfo-[prNode]:', prNode)
   const propertySettings = {}
@@ -668,9 +668,120 @@ function getPrInfo(prNode, warpObj, source, tag = 'a:') {
       value: fill
     }
   }
+  const fillNode = await getShapeFill(prNode, warpObj, source)
+  if (fillNode) {
+    propertySettings.fill = fillNode
+  }
+  // console.log('(00)-devAnalysisPPT-[chartEL]:-genChart--getChartInfo-[chart]:-deal-ori-fillNode:', fillNode)
+
 
   return {...effectData, ...propertySettings}
 }
+
+// async function getShapeFill(node, warpObj, source, groupHierarchy = []) {
+//   // const fillType = getFillType(getTextByPathList(node, ['p:spPr']))
+//   const fillType = getFillType(getTextByPathList(node, []))
+//   console.log('(00)-devAnalysisPPT-[chartEL]:-genChart--getChartInfo-[chart]:-deal-ori-node:', node, fillType)
+//   // const fillType = node
+//   // const useNode = node['p:spPr']
+//   const useNode = node
+//   let type = 'color'
+//   let fillValue = ''
+//   if (fillType === 'NO_FILL') {
+//     return null
+//   }
+//   else if (fillType === 'SOLID_FILL') {
+//     const shpFill = useNode['a:solidFill']
+//     fillValue = getSolidFill(shpFill, undefined, undefined, warpObj)
+//     type = 'color'
+//   }
+//   else if (fillType === 'GRADIENT_FILL') {
+//     const shpFill = useNode['a:gradFill']
+//     fillValue = getGradientFill(shpFill, warpObj)
+//     type = 'gradient'
+//   }
+//   else if (fillType === 'PIC_FILL') {
+//     const shpFill = useNode['a:blipFill']
+//     const picBase64 = await getPicFill(source, shpFill, warpObj)
+//     const opacity = getPicFillOpacity(shpFill)
+//     fillValue = {
+//       picBase64,
+//       opacity,
+//     }
+//     type = 'image'
+//   }
+//   else if (fillType === 'PATTERN_FILL') {
+//     const shpFill = useNode['a:pattFill']
+//     fillValue = getPatternFill({ 'a:pattFill': shpFill }, warpObj)
+//     type = 'pattern'
+//   }
+//   else if (fillType === 'GROUP_FILL') {
+//     return findFillInGroupHierarchy(groupHierarchy, warpObj, source)
+//   }
+//   if (!fillValue) {
+//     const clrName = getTextByPathList(node, ['p:style', 'a:fillRef'])
+//     const idx = getTextByPathList(clrName, ['attrs', 'idx'])
+//     if (idx === '1') {
+//       fillValue = getSolidFill(clrName, undefined, undefined, warpObj)
+//       type = 'color'
+//     }
+//     else {
+//       // const bgFillLst = warpObj['themeContent']['a:theme']['a:themeElements']['a:fmtScheme']['a:bgFillStyleLst']
+//       const fillStyleLst = warpObj['themeContent']['a:theme']['a:themeElements']['a:fmtScheme']['a:fillStyleLst']
+//       const fillList = []
+//       for (const item of Object.keys(fillStyleLst)) {
+//         if (item.includes('Fill')) {
+//           const subObj = fillStyleLst[`${item}`]
+//           if (Array.isArray(subObj)) {
+//             for (const usbItem of subObj) {
+//               const obj = {}
+//               obj[item] = usbItem
+//               fillList.push(obj)
+//             }
+//           }
+//           else {
+//             const obj = {}
+//             obj[item] = fillStyleLst[`${item}`]
+//             fillList.push(obj)
+//           }
+//         }
+//       }
+//       const lnIdx = Number(idx) - 1
+//       const fillNode = fillList[Number(lnIdx)]
+//       if (fillNode && lnIdx >= 0) {
+//         const fillType = getFillType(fillNode)
+//         if (fillType === 'NO_FILL') {
+//           return null
+//         }
+//         else if (fillType === 'SOLID_FILL') {
+//           const shpFill = fillNode['a:solidFill']
+//           const schemeClrVal = getTextByPathList(shpFill, ['a:schemeClr', 'attrs', 'val'])
+//           // 判断是否为占位值
+//           if (schemeClrVal && schemeClrVal === 'phClr') {
+//             shpFill['a:schemeClr']['attrs']['val'] = 'accent1'
+//           }
+//           fillValue = getSolidFill(shpFill, undefined, undefined, warpObj)
+//           type = 'color'
+//         }
+//         else if (fillType === 'GRADIENT_FILL') {
+//           const shpFill = fillNode['a:gradFill']
+//           const grabFillObj = getGradientFill(shpFill, warpObj)
+//           fillValue = grabFillObj
+//           type = 'gradient'
+//         }
+//       }
+//     }
+
+//   }
+//   if (!fillValue) {
+//     return null
+//   }
+
+//   return {
+//     type,
+//     value: fillValue,
+//   }
+// }
 
 export function dealListItem(list, target) {
   list, target

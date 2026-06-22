@@ -2,7 +2,7 @@ import JSZip from 'jszip'
 import { readXmlFile, simplifyLostLess } from './readXmlFile'
 import { getBorder } from './border'
 import { getSlideBackgroundFill, getShapeFill, getSolidFill, getPicFill, getPicFilters, dealGradientFill, getPicFillOpacity } from './fill'
-import { getChartInfo, getChartTitle, getChartLegend } from './chart'
+import { getChartInfo, getChartTitle, getChartLegend, getPrInfo } from './chart'
 import { extractProperties } from './chart_wps'
 import { getVerticalAlign, getTextAutoFit } from './align'
 import { getPosition, getSize } from './position'
@@ -733,7 +733,9 @@ async function processNodesInSlide(nodeKey, nodeValue, warpObj, source, groupHie
               // json = genWPSWebChart(dealNode, warpObj, source)
               // genWPSWebChart(dealNode, warpObj, source)
               const genWPSWebChartNode = genWPSWebChart(json, dealNode)
-              console.log('(00)-pptxtojson-[chartEL]:-pie:-an:-p:pic-nodeValue:-extNode:-dealNode:', dealNode, targetNode, genWPSWebChartNode)
+              json = genWPSWebChartNode
+              // console.log('(00)-pptxtojson-[chartEL]:-pie:-an:-p:pic-nodeValue:-extNode:-dealNode:', dealNode, targetNode, genWPSWebChartNode)
+              console.log('(00)-pptxtojson-[chartEL]:-pie:-an:-p:pic-nodeValue:-extNode:-genWPSWebChartNode:', genWPSWebChartNode)
             }
           }
         }
@@ -2082,8 +2084,17 @@ async function genChart(node, warpObj, source) {
   const blipFill = getTextByPathList(content, ['c:chartSpace', 'c:spPr', 'a:blipFill'])
   const picBase64 = await getPicFill('themeBg', blipFill, warpObj)
   const background = {type: 'image', src: picBase64}
+
+  const spPrNode = getTextByPathList(content, ['c:chartSpace', 'c:spPr'])
+  const prNode = await getPrInfo(spPrNode, warpObj, source)
+  
   const importProperty = {
     background,
+    ...prNode,
+  }
+  console.log('(00)-devAnalysisPPT-[chartEL]:-genChart--getChartInfo-[chart]:-deal-prNode:', spPrNode, prNode, importProperty)
+
+  const chartSpPr = {
     plotAreaSpPr: chart ? chart.plotAreaSpPrNode : {},
     chartTypeInfo: {
       type: chart.type,
@@ -2105,6 +2116,7 @@ async function genChart(node, warpObj, source) {
     table: chart.chartTable,
     spPrNode: chart.plotAreaSpPrNode,
     importProperty,
+    chartSpPr,
     legend: chartLegendInfo,
     top,
     left,
@@ -2303,6 +2315,7 @@ function genWPSWebChart(picInfo, props) {
     '2d-scatter': 'scatterChart',
     '2d-funnel': 'funnelChart',
   }
+  console.log('(00)-pptxtojson-[chartEL]:-pie:-an:-p:pic-nodeValue:-extNode:-genWPSWebChartNode:-wpsType:props.type:', wpsType, props.type)
   const chartType = TYPE_MAP[wpsType] || 'customChart'
 
   const rawData = demoData.data
@@ -2449,7 +2462,18 @@ function genWPSWebChart(picInfo, props) {
   }
 
   const importProperty = {
-    background: { type: 'image', src: picInfo.src || '' },
+    // background: { type: 'image', src: picInfo.src || '' },
+    plotAreaSpPr: spPrNode,
+    chartTypeInfo: {
+      type: chartType,
+      wpsChartType: wpsType,
+      wpsRenderer: props.renderer || 'echarts',
+    },
+    chartPr: { dLbls },
+  }
+
+  const chartSpPr = {
+    // background: { type: 'image', src: picInfo.src || '' },
     plotAreaSpPr: spPrNode,
     chartTypeInfo: {
       type: chartType,
@@ -2465,6 +2489,7 @@ function genWPSWebChart(picInfo, props) {
     title,
     spPrNode,
     importProperty,
+    chartSpPr,
     legend,
     top: picInfo.top,
     left: picInfo.left,
