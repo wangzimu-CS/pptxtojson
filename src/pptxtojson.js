@@ -2,7 +2,7 @@ import JSZip from 'jszip'
 import { readXmlFile, simplifyLostLess } from './readXmlFile'
 import { getBorder } from './border'
 import { getSlideBackgroundFill, getShapeFill, getSolidFill, getPicFill, getPicFilters, dealGradientFill, getPicFillOpacity } from './fill'
-import { getChartInfo, getChartTitle, getChartLegend, getPrInfo } from './chart'
+import { getChartInfo, getChartTitle, getChartLegend, getChartElPrInfo } from './chart'
 import { extractProperties } from './chart_wps'
 import { getVerticalAlign, getTextAutoFit } from './align'
 import { getPosition, getSize } from './position'
@@ -2029,8 +2029,6 @@ async function genChart(node, warpObj, source) {
     }
     const themeResFileName = refName.replace(themeName, '_rels/' + themeName) + '.rels'
     const themeResContent = await readXmlFile(warpObj['zip'], themeResFileName)
-    console.log('(00)-pptxtojson-[chartEL]:-pie:-an:--themeResObj-warpObj:', warpObj)
-    // console.log('(00)-pptxtojson-[chartEL]:-genChart-[refName]:-themeResFileName:', '【', themeResFileName, '】【', refName, '】【', themeResContent, '】', warpObj)
     const themeResObj = {}
     if (themeResContent) {
       let relationshipArray = themeResContent['Relationships']['Relationship']
@@ -2042,19 +2040,15 @@ async function genChart(node, warpObj, source) {
             'target': dealSamePathFilePath(relationshipArrayItem['attrs']['Target'].replace('../', 'ppt/')),
             'targetContent': await getXMlFileContent(relationshipArrayItem['attrs']['Target'].replace('../', 'ppt/'))
           }
-          console.log('(00)-pptxtojson-[chartEL]:-pie:-an:--themeResObj:', relationshipArrayItem['attrs']['Id'], '--:', themeResObj[relationshipArrayItem['attrs']['Id']])
         }
       }
     }
 
     warpObj.themeResObj = themeResObj
-    // console.log('(00)-pptxtojson-[chartEL]:-genChart-get-[themeResObj,warpObj]:', themeResObj, warpObj)
     // 获取图表主题
     // const themeOverrideContent = Object.values(themeResObj).filter(item => item.type === 'themeOverride')
     const themeOverrideContent = Object.values(themeResObj).find(item => item.type === 'themeOverride')
-    console.log('(00)-pptxtojson-[chartEL]:-genChart-get-[themeResObj,warpObj]:-themeOverrideContent', themeOverrideContent)
     const contentObj = getTextByPathList(themeOverrideContent, ['targetContent', 'a:themeOverride'])
-    console.log('(00)-pptxtojson-[chartEL]:-genChart-get-[themeResObj,warpObj]:-contentObj:', contentObj)
     if (contentObj && getTextByPathList(warpObj, ['themeContent', 'a:theme', 'a:themeElements'])) {
       const themeElements = warpObj['themeContent']['a:theme']['a:themeElements']
       orithemeElements = JSON.parse(JSON.stringify(themeElements))
@@ -2080,33 +2074,40 @@ async function genChart(node, warpObj, source) {
   const plotTitle = getTextByPathList(content, ['c:chartSpace', 'c:chart', 'c:title'])
   const chartTitleInfo = getChartTitle(plotTitle, warpObj, source)
   const plotLegend = getTextByPathList(content, ['c:chartSpace', 'c:chart', 'c:legend'])
-  // console.log('(00)-pptxtojson-[chartEL]:-genChart-[refName]:', refName)  
   const blipFill = getTextByPathList(content, ['c:chartSpace', 'c:spPr', 'a:blipFill'])
   const picBase64 = await getPicFill('themeBg', blipFill, warpObj)
   const background = {type: 'image', src: picBase64}
 
   const spPrNode = getTextByPathList(content, ['c:chartSpace', 'c:spPr'])
-  const prNode = await getPrInfo(spPrNode, warpObj, source)
+  const prNode = await getChartElPrInfo(spPrNode, warpObj, source)
   
   const importProperty = {
     background,
     ...prNode,
   }
   console.log('(00)-devAnalysisPPT-[chartEL]:-genChart--getChartInfo-[chart]:-deal-prNode:', spPrNode, prNode, importProperty)
+  console.log('(00)-devAnalysisPPT-[chartEL]:-showChart-props.elementInfo:-chart.key:', chart.key)
 
   const chartSpPr = {
     plotAreaSpPr: chart ? chart.plotAreaSpPrNode : {},
     chartTypeInfo: {
       type: chart.type,
+      typeKey: chart.key,
       barDir: chart.barDir,
       grouping: chart.grouping,
     },
     chartPr: chart.chartPr
   }
+  const { borderColor, borderWidth, borderType, strokeDasharray, borderColorObj } = getBorder(spPrNode, undefined, warpObj)
+  const borderObj = {
+    borderColor,
+    borderColorObj,
+    borderWidth,
+    borderType,
+    borderStrokeDasharray: strokeDasharray,
+  }
   
   const chartLegendInfo = getChartLegend(plotLegend, warpObj, source)
-  // console.log('(00)-pptxtojson-[chartEL]:-genChart-[chart]:', chart)
-  console.log('(00)-pptxtojson-[chartEL]:-genChart-[chart]-chart.type:', chart.type, chart)
   if (orithemeElements) {
     warpObj['themeContent']['a:theme']['a:themeElements'] = orithemeElements
   }
@@ -2117,6 +2118,7 @@ async function genChart(node, warpObj, source) {
     spPrNode: chart.plotAreaSpPrNode,
     importProperty,
     chartSpPr,
+    ...borderObj,
     legend: chartLegendInfo,
     top,
     left,

@@ -191,6 +191,7 @@ function getSeriesItemPr(innerNode, warpObj, source, otherParams) {
           switch (key) {
             case 'c:spPr':
               if (curNode) itemNodeInfo.spPr = getPrInfo(curNode, warpObj, source)
+              console.log('(00)-pptxtojson-[chartEL]:-pie:-[pieDataColor]:-analysis[curNode]:', curNode, itemNodeInfo.spPr)  
               break
 
             default:
@@ -302,8 +303,7 @@ function getDLblsInfo(node, warpObj, source, otherParams) {
 export function getChartInfo(plotArea, warpObj, source, otherParams) {
   let chart = null
   for (const key in plotArea) {
-    // console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[key]:', key)
-    if (key.includes('Chart')) console.log('(00)-pptxtojson-[chartEL]:-pie:-anylsis[spPr]-getChartInfo-[key]:', key)
+    // if (key.includes('Chart')) console.log('(00)-pptxtojson-[chartEL]:-pie:-anylsis[spPr]-getChartInfo-[key]:', key)
     let isChartKey = true
     switch (key) {
       case 'c:lineChart':
@@ -357,7 +357,8 @@ export function getChartInfo(plotArea, warpObj, source, otherParams) {
         break
       case 'c:ofPieChart':
         chart = {
-          type: 'pie3DChart',
+          // type: 'ofPieChart',
+          type: 'pieChart',
           data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser']['c:dPt'], warpObj),
         }
@@ -433,19 +434,18 @@ export function getChartInfo(plotArea, warpObj, source, otherParams) {
       default:
         isChartKey = false
     }
-    if (isChartKey) chart.chartPr = getChartPr(plotArea[key], warpObj, source, otherParams, plotArea)
+    if (isChartKey) {
+      chart.chartPr = getChartPr(plotArea[key], warpObj, source, otherParams, plotArea)
+      chart.key = key.replace('c:', '')
+    }
   }
   // 其它属性解析
-  // console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[plotArea]:', plotArea)
 
   const dTableNode = getTextByPathList(plotArea, ['c:dTable'])
-  console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[dTableNode]:', dTableNode)
   if (dTableNode && chart) chart.chartTable = getChartTableInfo(dTableNode, warpObj, source)
 
   const spPrNode = getTextByPathList(plotArea, ['c:spPr'])
-  console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[spPrNode]:', spPrNode)
   if (spPrNode && chart) chart.plotAreaSpPrNode = getPrInfo(spPrNode, warpObj, source)
-  console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-[chart]:', chart)
 
   return chart
 }
@@ -496,7 +496,6 @@ export function getChartTitle(cTitleNode, warpObj, source) {
       default:
     }
   }
-  // console.log('(00)-pptxtojson-[chartEL]:-genChart-[content]-getChartTitle-[titleInfo]111111111:', titleInfo)
 
   return titleInfo
 }
@@ -587,7 +586,7 @@ function getChartTableInfo(dTableNode, warpObj, source) {
   return chartTable 
 }
 
-export async function getPrInfo(prNode, warpObj, source, tag = 'a:') {
+function getPrInfo(prNode, warpObj, source, tag = 'a:') {
   tag
   console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-getPrInfo-[prNode]:', prNode)
   const propertySettings = {}
@@ -668,14 +667,20 @@ export async function getPrInfo(prNode, warpObj, source, tag = 'a:') {
       value: fill
     }
   }
-  const fillNode = await getShapeFill(prNode, warpObj, source)
-  if (fillNode) {
-    propertySettings.fill = fillNode
-  }
+
   // console.log('(00)-devAnalysisPPT-[chartEL]:-genChart--getChartInfo-[chart]:-deal-ori-fillNode:', fillNode)
 
 
   return {...effectData, ...propertySettings}
+}
+
+export async function getChartElPrInfo(prNode, warpObj, source, tag = 'a:') {
+  let prResultNode = getPrInfo(prNode, warpObj, source, tag = 'a:')
+  const fillNode = await getShapeFill(prNode, warpObj, source)
+  if (fillNode) {
+    prResultNode = {...prResultNode, ...fillNode}
+  }
+  return prResultNode
 }
 
 // async function getShapeFill(node, warpObj, source, groupHierarchy = []) {
