@@ -357,8 +357,8 @@ export function getChartInfo(plotArea, warpObj, source, otherParams) {
         break
       case 'c:ofPieChart':
         chart = {
-          // type: 'ofPieChart',
-          type: 'pieChart',
+          type: 'ofPieChart',
+          // type: 'pieChart',
           data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser']['c:dPt'], warpObj),
         }
