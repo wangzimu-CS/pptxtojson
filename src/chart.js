@@ -185,7 +185,7 @@ function getSeriesItemPr(innerNode, warpObj, source, otherParams) {
           if (subKey !== 'attrs') isOnlyAttrs = false ; break
         }
         if (curSubItemVal && key.includes('c:') && isOnlyAttrs) {
-          itemNodeInfo[`${key.replace('c:', '')}`] = curSubItemVal
+          itemNodeInfo[`${key.replace('c:', '')}`] = isNaN(Number(curSubItemVal)) ? curSubItemVal : Number(curSubItemVal)
         }
         else if (!isOnlyAttrs && key.includes('c:')) {
           switch (key) {
@@ -300,6 +300,48 @@ function getDLblsInfo(node, warpObj, source, otherParams) {
   return dLblsInfo 
 }
 
+function getOfPieChartPr(node, warpObj, source) {
+  console.log('(00)-devAnalysisPPT-[chartEL]:-showChart-props.elementInfo:--ofPieChart:--analysis:-node:', node)
+  /**
+   * c:gapWidth
+   * c:ofPieType
+   * c:secondPieSize
+   * c:serLines
+   */
+  let spPr = {}
+  // spPr.dPt = Number(dPt)
+  const itemNode = node
+  const itemNodeInfo = {}
+  for (const key in itemNode) {
+    const curNode = itemNode[`${key}`]
+    const curSubItemVal = getTextByPathList(curNode, ['attrs', 'val'])
+    let isOnlyAttrs = true
+    for (const subKey in curNode) {
+      if (subKey !== 'attrs') isOnlyAttrs = false ; break
+    }
+    if (curSubItemVal && key.includes('c:') && isOnlyAttrs) {
+      itemNodeInfo[`${key.replace('c:', '')}`] = isNaN(Number(curSubItemVal)) ? curSubItemVal : Number(curSubItemVal)
+    }
+    else if (!isOnlyAttrs && key.includes('c:')) {
+      switch (key) {
+        case 'c:serLines':
+          const curNodeSpPrNode = itemNodeInfo.serLines = getPrInfo(getTextByPathList(curNode, ['c:spPr']), warpObj, source)
+          if (curNodeSpPrNode) itemNodeInfo.serLines = JSON.parse(JSON.stringify(getTextByPathList(itemNodeInfo.serLines, ['border'])).replaceAll('border', 'line'))
+          console.log('(00)-pptxtojson-[chartEL]:-pie:-[pieDataColor]:-analysis[curNode]:', curNodeSpPrNode, itemNodeInfo.spPr)  
+          break
+
+        default:
+          break
+      }
+    }
+
+  }
+  // spPr.dPt.push({...itemNodeInfo})
+  spPr = itemNodeInfo
+  console.log('(00)-devAnalysisPPT-[chartEL]:-showChart-props.elementInfo:--ofPieChart:--analysis:-spPr:', spPr)
+  return spPr
+}
+
 export function getChartInfo(plotArea, warpObj, source, otherParams) {
   let chart = null
   for (const key in plotArea) {
@@ -361,6 +403,7 @@ export function getChartInfo(plotArea, warpObj, source, otherParams) {
           // type: 'pieChart',
           data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser']['c:dPt'], warpObj),
+          OfPieChartPr: getOfPieChartPr(plotArea[key], warpObj, source)
         }
         break
       case 'c:doughnutChart':
@@ -437,6 +480,7 @@ export function getChartInfo(plotArea, warpObj, source, otherParams) {
     if (isChartKey) {
       chart.chartPr = getChartPr(plotArea[key], warpObj, source, otherParams, plotArea)
       chart.key = key.replace('c:', '')
+      if (chart.OfPieChartPr) chart.chartPr = {...chart.chartPr, OfPieChartPr: chart.OfPieChartPr}
     }
   }
   // 其它属性解析
@@ -587,7 +631,7 @@ function getChartTableInfo(dTableNode, warpObj, source) {
 }
 
 function getPrInfo(prNode, warpObj, source, tag = 'a:') {
-  tag
+  if (!prNode) return
   console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-getPrInfo-[prNode]:', prNode)
   const propertySettings = {}
   let effectData

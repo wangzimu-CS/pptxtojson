@@ -2096,7 +2096,7 @@ async function genChart(node, warpObj, source) {
       barDir: chart.barDir,
       grouping: chart.grouping,
     },
-    chartPr: chart.chartPr
+    ...chart.chartPr
   }
   const { borderColor, borderWidth, borderType, strokeDasharray, borderColorObj } = getBorder(spPrNode, undefined, warpObj)
   const borderObj = {
