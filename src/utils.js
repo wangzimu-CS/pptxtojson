@@ -165,3 +165,30 @@ export function hasValidText(htmlString) {
 export function numberToFixed(num, fractionDigits = 4) {
   return parseFloat(num.toFixed(fractionDigits))
 }
+
+/**
+ * 将 Excel 日期序列号转换为 JavaScript Date 对象
+ * @param {number} serial - Excel 日期序列号（如 37261）
+ * @returns {Date} 对应的 Date 对象（UTC 时间）
+ */
+export function excelSerialToDate(serial) {
+  const msPerDay = 86400000
+  const s = Math.floor(serial)
+  const fraction = serial - s // 处理小数部分（时间）
+
+  // 25569 是 Excel 中 1970-01-01 (Unix 纪元) 对应的序列号
+  //   推导: 1900-01-01 到 1970-01-01 = 25567 天 + Lotus bug 修正 +2 = 25569
+  //
+  // 序列号 ≤ 60 的日期在 Lotus bug 之前，不需要偏移修正
+  //   常数 25568 = 25569 - 1
+  const timestamp = (s <= 60)
+    ? (s - 25568) * msPerDay // 1900-01-01 ~ 1900-02-28
+    : (s - 25569) * msPerDay // 1900-03-01 及之后
+
+  return new Date(timestamp + fraction * msPerDay)
+}
+
+export function excelSerialToFormatted(serial) {
+  const d = excelSerialToDate(serial)
+  return `${d.getUTCFullYear()}/${d.getUTCMonth() + 1}/${d.getUTCDate()}`
+}

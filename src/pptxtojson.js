@@ -2135,7 +2135,7 @@ async function genChart(node, warpObj, source) {
   if (chart.grouping !== undefined) data.grouping = chart.grouping
   if (chart.style !== undefined) data.style = chart.style
 
-  console.log('(00)-pptxtojson-[chartEL]:-pie:-an:-p:pic-nodeValue:-extNode:-dealNode:-data:', data)
+  console.log('(00)-pptxtojson-[chartEL]:-genChart-areaChart-genChart:-[data]:', data)
   return data
 }
 // async function genWPSWebChart(node, warpObj, source) {

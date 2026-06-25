@@ -1,4 +1,4 @@
-import { eachElement, getTextByPathList } from './utils'
+import { eachElement, getTextByPathList, excelSerialToFormatted } from './utils'
 import { applyTint } from './color'
 import { getShadow } from './shadow'
 import { getGlow, getSoftEdge } from './glow'
@@ -107,8 +107,9 @@ function extractChartData(serNode, warpObj, source, otherParams) {
         })
       } 
       else if (getTextByPathList(innerNode, ['c:cat', 'c:numRef', 'c:numCache', 'c:pt'])) {
+        const isDateString = getTextByPathList(innerNode, ['c:cat', 'c:numRef', 'c:numCache', 'c:formatCode']) === 'yyyy/m/d'
         eachElement(innerNode['c:cat']['c:numRef']['c:numCache']['c:pt'], innerNode => {
-          rowNames[innerNode['attrs']['idx']] = innerNode['c:v']
+          rowNames[innerNode['attrs']['idx']] = !isDateString ? innerNode['c:v'] : excelSerialToFormatted(innerNode['c:v'])
           return ''
         })
       }
@@ -136,7 +137,7 @@ function extractChartData(serNode, warpObj, source, otherParams) {
     })
   }
 
-  console.log('(00)-pptxtojson-[chartEL]:-anylisChart-dataMat:', dataMat)
+  console.log('(00)-pptxtojson-[chartEL]:-genChart-areaChart--anylisChart-dataMat:', dataMat)
   return dataMat
 }
 
@@ -421,6 +422,7 @@ export function getChartInfo(plotArea, warpObj, source, otherParams) {
           colors: extractChartColors(plotArea[key]['c:ser'], warpObj),
           grouping: getTextByPathList(plotArea[key], ['c:grouping', 'attrs', 'val']),
         }
+        console.log('(00)-pptxtojson-[chartEL]:-genChart-areaChart-[chart]:', chart)
         break
       case 'c:area3DChart':
         chart = {
@@ -722,8 +724,9 @@ export async function getChartElPrInfo(prNode, warpObj, source, tag = 'a:') {
   let prResultNode = getPrInfo(prNode, warpObj, source, tag = 'a:')
   const fillNode = await getShapeFill(prNode, warpObj, source)
   if (fillNode) {
-    prResultNode = {...prResultNode, ...fillNode}
+    prResultNode = {...prResultNode, fill: fillNode}
   }
+  console.log('(00)-devAnalysisPPT-[chartEL]:-genChart--getChartInfo-[chart]-[otherStyle]:--[prResultNode]:', prResultNode)
   return prResultNode
 }
 
