@@ -247,6 +247,118 @@ function getChartPr(chartNode, warpObj, source, otherParams, plotArea) {
   console.log('(00)-pptxtojson-[chartEL]:-serNode:--result:', spPr)
   return spPr  
 }
+
+function getPlotAreaPr(chartNode, warpObj, source, otherParams, plotArea) {
+  const node = plotArea
+  let spPr = {}
+  // spPr.dPt = Number(dPt)
+  const itemNode = node
+  const itemNodeInfo = {}
+  const excludeKeys = ['c:ser', 'c:dLbls']
+  for (const key in itemNode) {
+    console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-[key]:', key)
+    const curNode = itemNode[`${key}`]
+    const curSubItemVal = getTextByPathList(curNode, ['attrs', 'val'])
+    let isOnlyAttrs = true
+    for (const subKey in curNode) {
+      if (subKey !== 'attrs') isOnlyAttrs = false ; break
+    }
+    if (curSubItemVal && key.includes('c:') && isOnlyAttrs) {
+      itemNodeInfo[`${key.replace('c:', '')}`] = isNaN(Number(curSubItemVal)) ? curSubItemVal : Number(curSubItemVal)
+    }
+    else if (!isOnlyAttrs && key.includes('c:')) {
+      switch (key) {
+        case 'c:valAx':
+        case 'c:catAx':
+          const axNode = generalInformationAnalysis(curNode, warpObj, source)
+          if (axNode) itemNodeInfo[key.replace('c:', '')] = axNode
+          break
+        case 'c:spPr':
+          const spPrNode = getPrInfo(curNode, warpObj, source)
+          // if (spPrNode) itemNodeInfo.serLines = JSON.parse(JSON.stringify(getTextByPathList(itemNodeInfo.serLines, ['border'])).replaceAll('border', 'line'))
+          // if (spPrNode) itemNodeInfo[key.replace('c:', '')] = JSON.parse(JSON.stringify(getTextByPathList(spPrNode, ['border'])).replaceAll('border', 'line'))
+          if (spPrNode) itemNodeInfo[key.replace('c:', '')] = spPrNode
+          console.log('(00)-pptxtojson-[chartEL]:-pie:-[pieDataColor]:-analysis[curNode]:', spPrNode, itemNodeInfo.spPr)  
+          break
+
+        default:
+          if (curNode && !excludeKeys.includes(key)) itemNodeInfo[key.replace('c:', '')] = curNode
+          break
+      }
+    }
+
+  }
+  // spPr.dPt.push({...itemNodeInfo})
+  spPr = itemNodeInfo
+  console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-[spPr]:', spPr)
+  return spPr
+}
+
+function generalInformationAnalysis(node, warpObj, source, rootNode = undefined, nodeKey = '', deepLevel = 0) {
+  if (!rootNode) rootNode = node
+  let spPr = {}
+  // spPr.dPt = Number(dPt)
+  const itemNode = node
+  const itemNodeInfo = {}
+  const excludeKeys = ['c:ser', 'c:dLbls']
+  // console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-[Object.keys(itemNode)]:', Object.keys(itemNode))
+  for (const key in itemNode) {
+    // console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-[key]:', key)
+    const curNode = itemNode[`${key}`]
+    const curSubItemVal = getTextByPathList(curNode, ['attrs', 'val'])
+    let isOnlyAttrs = true
+    for (const subKey in curNode) {
+      if (subKey !== 'attrs') isOnlyAttrs = false ; break
+    }
+    if (curSubItemVal && key.includes('c:') && isOnlyAttrs) {
+      itemNodeInfo[`${key.replace('c:', '')}`] = isNaN(Number(curSubItemVal)) ? curSubItemVal : Number(curSubItemVal)
+    }
+    else if (!isOnlyAttrs && key.includes('c:')) {
+      switch (key) {
+        case 'c:spPr':
+          const spPrNode = getPrInfo(curNode, warpObj, source)
+          // if (spPrNode) itemNodeInfo.serLines = JSON.parse(JSON.stringify(getTextByPathList(itemNodeInfo.serLines, ['border'])).replaceAll('border', 'line'))
+          if (spPrNode) itemNodeInfo[key.replace('c:', '')] = JSON.parse(JSON.stringify(getTextByPathList(spPrNode, ['border'])).replaceAll('border', 'line'))
+          if (spPrNode) itemNodeInfo[key.replace('c:', '')] = JSON.parse(JSON.stringify(spPrNode).replaceAll('border', 'line'))
+          // if (spPrNode && deepLevel === 0) itemNodeInfo[key.replace('c:', '')] = JSON.parse(JSON.stringify(getTextByPathList(spPrNode, ['border'])).replaceAll('border', 'line'))
+          // if (spPrNode && deepLevel > 0) {
+          //   // const spPrResult = JSON.parse(JSON.stringify(getTextByPathList(spPrNode, ['border'])).replaceAll('border', 'line'))
+          //   const spPrResult = JSON.parse(JSON.stringify(spPrNode).replaceAll('border', 'line'))
+          //   itemNodeInfo = {...itemNodeInfo, ...spPrResult}
+          // } 
+          // if (nodeKey.includes('lines')) {
+          //   console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-[]:', key, ':', curNode)
+          // }
+          // console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-[nodeKey,deepLevel]:', nodeKey, deepLevel, key)
+          // if (spPrNode) itemNodeInfo[key.replace('c:', '')] = spPrNode
+          // console.log('(00)-pptxtojson-[chartEL]:-pie:-[pieDataColor]:-analysis[curNode]:', spPrNode, itemNodeInfo.spPr)  
+          break
+
+        default:
+          // if ((objKeys.length === 2 && objKeys.includes('attrs') && objKeys.includes('c:spPr'))
+          //     || (objKeys.length === 1 && objKeys.includes('attrs'))
+          // ) {
+          // const deepNode = generalInformationAnalysis(curNode, warpObj, source)
+          // if (deepNode) itemNodeInfo[key.replace('c:', '')] = deepNode
+          const objKeys = Object.keys(curNode) 
+          if ((objKeys.length <= 2 && objKeys.includes('attrs'))) {
+            const spPrNode = generalInformationAnalysis(curNode, warpObj, source, rootNode, key, deepLevel + 1)
+            if (spPrNode) itemNodeInfo[key.replace('c:', '')] = spPrNode
+          }
+          else {
+            if (curNode && !excludeKeys.includes(key)) itemNodeInfo[key.replace('c:', '')] = curNode
+          }
+          break
+      }
+    }
+
+  }
+  // spPr.dPt.push({...itemNodeInfo})
+  spPr = itemNodeInfo
+  console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-[spPr]:', spPr)
+  return spPr
+}
+
 function getDLblsInfo(node, warpObj, source, otherParams) {
   const dLblsInfo = {}
   for (const key in node) {
@@ -301,7 +413,7 @@ function getDLblsInfo(node, warpObj, source, otherParams) {
   return dLblsInfo 
 }
 
-function getOfPieChartPr(node, warpObj, source) {
+function getChartProprietaryPr(node, warpObj, source) {
   console.log('(00)-devAnalysisPPT-[chartEL]:-showChart-props.elementInfo:--ofPieChart:--analysis:-node:', node)
   /**
    * c:gapWidth
@@ -313,6 +425,7 @@ function getOfPieChartPr(node, warpObj, source) {
   // spPr.dPt = Number(dPt)
   const itemNode = node
   const itemNodeInfo = {}
+  const excludeKeys = ['c:ser', 'c:dLbls']
   for (const key in itemNode) {
     const curNode = itemNode[`${key}`]
     const curSubItemVal = getTextByPathList(curNode, ['attrs', 'val'])
@@ -325,13 +438,16 @@ function getOfPieChartPr(node, warpObj, source) {
     }
     else if (!isOnlyAttrs && key.includes('c:')) {
       switch (key) {
+        case 'c:dropLines':
         case 'c:serLines':
-          const curNodeSpPrNode = itemNodeInfo.serLines = getPrInfo(getTextByPathList(curNode, ['c:spPr']), warpObj, source)
-          if (curNodeSpPrNode) itemNodeInfo.serLines = JSON.parse(JSON.stringify(getTextByPathList(itemNodeInfo.serLines, ['border'])).replaceAll('border', 'line'))
+          const curNodeSpPrNode = getPrInfo(getTextByPathList(curNode, ['c:spPr']), warpObj, source)
+          // if (curNodeSpPrNode) itemNodeInfo.serLines = JSON.parse(JSON.stringify(getTextByPathList(itemNodeInfo.serLines, ['border'])).replaceAll('border', 'line'))
+          if (curNodeSpPrNode) itemNodeInfo[key.replace('c:', '')] = JSON.parse(JSON.stringify(getTextByPathList(curNodeSpPrNode, ['border'])).replaceAll('border', 'line'))
           console.log('(00)-pptxtojson-[chartEL]:-pie:-[pieDataColor]:-analysis[curNode]:', curNodeSpPrNode, itemNodeInfo.spPr)  
           break
 
         default:
+          if (curNode && !excludeKeys.includes(key)) itemNodeInfo[key.replace('c:', '')] = curNode
           break
       }
     }
@@ -404,7 +520,7 @@ export function getChartInfo(plotArea, warpObj, source, otherParams) {
           // type: 'pieChart',
           data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser']['c:dPt'], warpObj),
-          OfPieChartPr: getOfPieChartPr(plotArea[key], warpObj, source)
+          OfPieChartPr: getChartProprietaryPr(plotArea[key], warpObj, source)
         }
         break
       case 'c:doughnutChart':
@@ -421,6 +537,7 @@ export function getChartInfo(plotArea, warpObj, source, otherParams) {
           data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser'], warpObj),
           grouping: getTextByPathList(plotArea[key], ['c:grouping', 'attrs', 'val']),
+          areaChartPr: getChartProprietaryPr(plotArea[key], warpObj, source)
         }
         console.log('(00)-pptxtojson-[chartEL]:-genChart-areaChart-[chart]:', chart)
         break
@@ -453,6 +570,7 @@ export function getChartInfo(plotArea, warpObj, source, otherParams) {
           data: extractChartData(plotArea[key]['c:ser'], warpObj, source, otherParams),
           colors: extractChartColors(plotArea[key]['c:ser'], warpObj),
           style: getTextByPathList(plotArea[key], ['c:radarStyle', 'attrs', 'val']),
+          radarChartPr: getChartProprietaryPr(plotArea[key], warpObj, source)
         }
         break
       case 'c:surfaceChart':
@@ -483,6 +601,10 @@ export function getChartInfo(plotArea, warpObj, source, otherParams) {
       chart.chartPr = getChartPr(plotArea[key], warpObj, source, otherParams, plotArea)
       chart.key = key.replace('c:', '')
       if (chart.OfPieChartPr) chart.chartPr = {...chart.chartPr, OfPieChartPr: chart.OfPieChartPr}
+      if (chart.areaChartPr) chart.chartPr = {...chart.chartPr, areaChartPr: chart.areaChartPr}
+      if (chart.radarChartPr) chart.chartPr = {...chart.chartPr, radarChartPr: chart.radarChartPr}
+      const plotAreaPr = getPlotAreaPr(plotArea[key], warpObj, source, otherParams, plotArea)
+      if (plotAreaPr) chart.chartPr = {...chart.chartPr, plotAreaPr}
     }
   }
   // 其它属性解析
@@ -634,10 +756,12 @@ function getChartTableInfo(dTableNode, warpObj, source) {
 
 function getPrInfo(prNode, warpObj, source, tag = 'a:') {
   if (!prNode) return
+  const objKeys = Object.keys(prNode)
+  console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-[]-getPrInfo-[objKeys]:', objKeys) 
   console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-getPrInfo-[prNode]:', prNode)
   const propertySettings = {}
-  let effectData
-  {
+  let effectData = null
+  const getEffectLstNode = () => {
     const data = {}
     // const propertySettings = {}
     let offectObj = {}
@@ -687,7 +811,6 @@ function getPrInfo(prNode, warpObj, source, tag = 'a:') {
     if (softEdgeNode) softEdge = getSoftEdge(softEdgeNode)
   
     // const vAlign = getVerticalAlign(prNode, slideLayoutSpNode, slideMasterSpNode, type)
-  
     // console.log('(00)-pptxtosjson-bodyPrValueAttrs:', bodyPrValueAttrs)
     // const vertValue = getTextByPathList(prNode, ['p:txBody', 'a:bodyPr', 'attrs', 'vert'])
     // let textDirectionValue
@@ -701,7 +824,9 @@ function getPrInfo(prNode, warpObj, source, tag = 'a:') {
     // if (autoFit) data.autoFit = autoFit
     // if (link) data.link = link
     effectData = data
+    return JSON.stringify(data) !== '{}' ? data : null
   }
+  getEffectLstNode()
   const tableBorder = getBorder(prNode, '', warpObj)
   propertySettings.border = tableBorder
 
@@ -714,10 +839,76 @@ function getPrInfo(prNode, warpObj, source, tag = 'a:') {
     }
   }
 
-  // console.log('(00)-devAnalysisPPT-[chartEL]:-genChart--getChartInfo-[chart]:-deal-ori-fillNode:', fillNode)
+  const result = {...effectData, ...propertySettings, effectLst: effectData}
+  if (objKeys.includes('a:noFill')) {
+    result.fill = {
+      type: 'noFill'
+    }
+  }
 
+  for (const key in prNode) {
+    const curNode = prNode[`${key}`]
+    switch (key) {
+      case 'a:noFill':
+        result.fill = null
+        break
+      case 'a:solidFill':
+        const fillNode = getSolidFill(curNode, undefined, undefined, warpObj)
+        result[`${key.replace('a:', '')}`] = {
+          type: 'color',
+          value: fillNode
+        }
+        break
+      case 'a:ln':
+        // const lnNode = getBorder(prNode, '', warpObj)
+        const lnNode = getLnPr(prNode, curNode, warpObj)
+        result[`${key.replace('a:', '')}`] = lnNode
+        break
+      case 'a:effectLst':
+        const effectLstNode = getEffectLstNode()
+        result[`${key.replace('a:', '')}`] = effectLstNode
+        break
+      default:
+    }
+  }
 
-  return {...effectData, ...propertySettings}
+  return result
+}
+
+function getLnPr(prNode, node, warpObj) {
+  const tag = 'c:'
+  const result = {}
+  for (const key in node) {
+    const curNode = node[`${key}`]
+    const curNodeVal = getTextByPathList(curNode, ['attrs', 'val'])
+    const curNodeTypeVal = getTextByPathList(curNode, ['attrs', 'type'])
+
+    console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-getLnPr-[node,result]:-', node, '|', result)
+
+    let isOnlyAttrs = true
+    for (const subKey in curNode) {
+      if (subKey !== 'attrs') isOnlyAttrs = false ; break
+    }
+    if (curNodeVal && key.includes('a:') && isOnlyAttrs) result[`${key.replace('a:', '')}`] = curNodeVal
+    else if (curNodeTypeVal) result[`${key.replace('a:', '')}`] = curNodeTypeVal
+    else if (!isOnlyAttrs && key.includes('a:')) {
+      switch (key) {
+        case 'a:noFill':
+        case 'a:solidFill':
+        case 'a:gradFill':
+          const fillNode = getBorder(prNode, '', warpObj)
+          result.lineFill = fillNode
+          // result[`${key.replace('a:', '')}`] = {
+          //   type: 'color',
+          //   value: fillNode
+          // }
+          break
+        default:
+      }
+    }
+  }
+  console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-getLnPr-[node,result]:-', node, '|', result)
+  return result
 }
 
 export async function getChartElPrInfo(prNode, warpObj, source, tag = 'a:') {
@@ -729,111 +920,6 @@ export async function getChartElPrInfo(prNode, warpObj, source, tag = 'a:') {
   console.log('(00)-devAnalysisPPT-[chartEL]:-genChart--getChartInfo-[chart]-[otherStyle]:--[prResultNode]:', prResultNode)
   return prResultNode
 }
-
-// async function getShapeFill(node, warpObj, source, groupHierarchy = []) {
-//   // const fillType = getFillType(getTextByPathList(node, ['p:spPr']))
-//   const fillType = getFillType(getTextByPathList(node, []))
-//   console.log('(00)-devAnalysisPPT-[chartEL]:-genChart--getChartInfo-[chart]:-deal-ori-node:', node, fillType)
-//   // const fillType = node
-//   // const useNode = node['p:spPr']
-//   const useNode = node
-//   let type = 'color'
-//   let fillValue = ''
-//   if (fillType === 'NO_FILL') {
-//     return null
-//   }
-//   else if (fillType === 'SOLID_FILL') {
-//     const shpFill = useNode['a:solidFill']
-//     fillValue = getSolidFill(shpFill, undefined, undefined, warpObj)
-//     type = 'color'
-//   }
-//   else if (fillType === 'GRADIENT_FILL') {
-//     const shpFill = useNode['a:gradFill']
-//     fillValue = getGradientFill(shpFill, warpObj)
-//     type = 'gradient'
-//   }
-//   else if (fillType === 'PIC_FILL') {
-//     const shpFill = useNode['a:blipFill']
-//     const picBase64 = await getPicFill(source, shpFill, warpObj)
-//     const opacity = getPicFillOpacity(shpFill)
-//     fillValue = {
-//       picBase64,
-//       opacity,
-//     }
-//     type = 'image'
-//   }
-//   else if (fillType === 'PATTERN_FILL') {
-//     const shpFill = useNode['a:pattFill']
-//     fillValue = getPatternFill({ 'a:pattFill': shpFill }, warpObj)
-//     type = 'pattern'
-//   }
-//   else if (fillType === 'GROUP_FILL') {
-//     return findFillInGroupHierarchy(groupHierarchy, warpObj, source)
-//   }
-//   if (!fillValue) {
-//     const clrName = getTextByPathList(node, ['p:style', 'a:fillRef'])
-//     const idx = getTextByPathList(clrName, ['attrs', 'idx'])
-//     if (idx === '1') {
-//       fillValue = getSolidFill(clrName, undefined, undefined, warpObj)
-//       type = 'color'
-//     }
-//     else {
-//       // const bgFillLst = warpObj['themeContent']['a:theme']['a:themeElements']['a:fmtScheme']['a:bgFillStyleLst']
-//       const fillStyleLst = warpObj['themeContent']['a:theme']['a:themeElements']['a:fmtScheme']['a:fillStyleLst']
-//       const fillList = []
-//       for (const item of Object.keys(fillStyleLst)) {
-//         if (item.includes('Fill')) {
-//           const subObj = fillStyleLst[`${item}`]
-//           if (Array.isArray(subObj)) {
-//             for (const usbItem of subObj) {
-//               const obj = {}
-//               obj[item] = usbItem
-//               fillList.push(obj)
-//             }
-//           }
-//           else {
-//             const obj = {}
-//             obj[item] = fillStyleLst[`${item}`]
-//             fillList.push(obj)
-//           }
-//         }
-//       }
-//       const lnIdx = Number(idx) - 1
-//       const fillNode = fillList[Number(lnIdx)]
-//       if (fillNode && lnIdx >= 0) {
-//         const fillType = getFillType(fillNode)
-//         if (fillType === 'NO_FILL') {
-//           return null
-//         }
-//         else if (fillType === 'SOLID_FILL') {
-//           const shpFill = fillNode['a:solidFill']
-//           const schemeClrVal = getTextByPathList(shpFill, ['a:schemeClr', 'attrs', 'val'])
-//           // 判断是否为占位值
-//           if (schemeClrVal && schemeClrVal === 'phClr') {
-//             shpFill['a:schemeClr']['attrs']['val'] = 'accent1'
-//           }
-//           fillValue = getSolidFill(shpFill, undefined, undefined, warpObj)
-//           type = 'color'
-//         }
-//         else if (fillType === 'GRADIENT_FILL') {
-//           const shpFill = fillNode['a:gradFill']
-//           const grabFillObj = getGradientFill(shpFill, warpObj)
-//           fillValue = grabFillObj
-//           type = 'gradient'
-//         }
-//       }
-//     }
-
-//   }
-//   if (!fillValue) {
-//     return null
-//   }
-
-//   return {
-//     type,
-//     value: fillValue,
-//   }
-// }
 
 export function dealListItem(list, target) {
   list, target

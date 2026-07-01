@@ -637,7 +637,7 @@ export async function getSlideBackgroundFill(warpObj) {
 
 export async function getShapeFill(node, warpObj, source, groupHierarchy = []) {
   let fillType = getFillType(getTextByPathList(node, ['p:spPr']))
-  let useNode = node['p:spPr']
+  let useNode = getFillType(getTextByPathList(node, ['p:spPr']))
   if (!fillType) {
     fillType = getFillType(getTextByPathList(node, []))
     useNode = node

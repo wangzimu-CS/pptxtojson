@@ -18,7 +18,7 @@ export function getBorder(node, elType, warpObj) {
 
   let borderWidth = isNoFill ? 0 : (parseInt(getTextByPathList(lineNode, ['attrs', 'w'])) / 12700)
   if (isNaN(borderWidth)) {
-    if (lineNode['a:solidFill']) borderWidth = 2
+    if (getTextByPathList(lineNode, ['a:solidFill'])) borderWidth = 2
     else if (lineNode) borderWidth = 0
     else if (elType !== 'obj') borderWidth = 0
     else borderWidth = 1
@@ -33,7 +33,7 @@ export function getBorder(node, elType, warpObj) {
     }
   }
   let borderColorObj
-  if (lineNode['a:gradFill']) {
+  if (getTextByPathList(lineNode, ['a:gradFill'])) {
     const gradFillObj = lineNode['a:gradFill'] 
     const gradientFillInfo = getGradientFill(gradFillObj, warpObj)
     borderColorObj = {
