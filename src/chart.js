@@ -256,7 +256,7 @@ function getPlotAreaPr(chartNode, warpObj, source, otherParams, plotArea) {
   const itemNodeInfo = {}
   const excludeKeys = ['c:ser', 'c:dLbls']
   for (const key in itemNode) {
-    console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-[key]:', key)
+    console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-getLnPr-【inGet】-key:', key)
     const curNode = itemNode[`${key}`]
     const curSubItemVal = getTextByPathList(curNode, ['attrs', 'val'])
     let isOnlyAttrs = true
@@ -270,19 +270,21 @@ function getPlotAreaPr(chartNode, warpObj, source, otherParams, plotArea) {
       switch (key) {
         case 'c:valAx':
         case 'c:catAx':
+        case 'c:spPr':
           const axNode = generalInformationAnalysis(curNode, warpObj, source)
           if (axNode) itemNodeInfo[key.replace('c:', '')] = axNode
           break
-        case 'c:spPr':
-          const spPrNode = getPrInfo(curNode, warpObj, source)
-          // if (spPrNode) itemNodeInfo.serLines = JSON.parse(JSON.stringify(getTextByPathList(itemNodeInfo.serLines, ['border'])).replaceAll('border', 'line'))
-          // if (spPrNode) itemNodeInfo[key.replace('c:', '')] = JSON.parse(JSON.stringify(getTextByPathList(spPrNode, ['border'])).replaceAll('border', 'line'))
-          if (spPrNode) itemNodeInfo[key.replace('c:', '')] = spPrNode
-          console.log('(00)-pptxtojson-[chartEL]:-pie:-[pieDataColor]:-analysis[curNode]:', spPrNode, itemNodeInfo.spPr)  
-          break
+          // case 'c:spPr':
+          //   const spPrNode = getPrInfo(curNode, warpObj, source)
+          //   // if (spPrNode) itemNodeInfo.serLines = JSON.parse(JSON.stringify(getTextByPathList(itemNodeInfo.serLines, ['border'])).replaceAll('border', 'line'))
+          //   // if (spPrNode) itemNodeInfo[key.replace('c:', '')] = JSON.parse(JSON.stringify(getTextByPathList(spPrNode, ['border'])).replaceAll('border', 'line'))
+          //   if (spPrNode) itemNodeInfo[key.replace('c:', '')] = spPrNode
+          //   console.log('(00)-pptxtojson-[chartEL]:-pie:-[pieDataColor]:-analysis[curNode]:', spPrNode, itemNodeInfo.spPr)  
+          //   break
 
         default:
-          if (curNode && !excludeKeys.includes(key)) itemNodeInfo[key.replace('c:', '')] = curNode
+          // if (curNode && !excludeKeys.includes(key)) itemNodeInfo[key.replace('c:', '')] = curNode
+          if (curNode && !excludeKeys.includes(key)) itemNodeInfo[key.replace('c:', '')] = generalInformationAnalysis(curNode, warpObj, source) 
           break
       }
     }
@@ -290,7 +292,7 @@ function getPlotAreaPr(chartNode, warpObj, source, otherParams, plotArea) {
   }
   // spPr.dPt.push({...itemNodeInfo})
   spPr = itemNodeInfo
-  console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-[spPr]:', spPr)
+  spPr.oriNode = node
   return spPr
 }
 
@@ -301,10 +303,9 @@ function generalInformationAnalysis(node, warpObj, source, rootNode = undefined,
   const itemNode = node
   const itemNodeInfo = {}
   const excludeKeys = ['c:ser', 'c:dLbls']
-  // console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-[Object.keys(itemNode)]:', Object.keys(itemNode))
   for (const key in itemNode) {
-    // console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-[key]:', key)
     const curNode = itemNode[`${key}`]
+    console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-getLnPr--[key,curNode]:', key, curNode)
     const curSubItemVal = getTextByPathList(curNode, ['attrs', 'val'])
     let isOnlyAttrs = true
     for (const subKey in curNode) {
@@ -313,7 +314,8 @@ function generalInformationAnalysis(node, warpObj, source, rootNode = undefined,
     if (curSubItemVal && key.includes('c:') && isOnlyAttrs) {
       itemNodeInfo[`${key.replace('c:', '')}`] = isNaN(Number(curSubItemVal)) ? curSubItemVal : Number(curSubItemVal)
     }
-    else if (!isOnlyAttrs && key.includes('c:')) {
+    // else if (!isOnlyAttrs && key.includes('c:')) {
+    else if (!isOnlyAttrs) {
       switch (key) {
         case 'c:spPr':
           const spPrNode = getPrInfo(curNode, warpObj, source)
@@ -338,24 +340,41 @@ function generalInformationAnalysis(node, warpObj, source, rootNode = undefined,
           // if ((objKeys.length === 2 && objKeys.includes('attrs') && objKeys.includes('c:spPr'))
           //     || (objKeys.length === 1 && objKeys.includes('attrs'))
           // ) {
-          // const deepNode = generalInformationAnalysis(curNode, warpObj, source)
-          // if (deepNode) itemNodeInfo[key.replace('c:', '')] = deepNode
-          const objKeys = Object.keys(curNode) 
-          if ((objKeys.length <= 2 && objKeys.includes('attrs'))) {
-            const spPrNode = generalInformationAnalysis(curNode, warpObj, source, rootNode, key, deepLevel + 1)
-            if (spPrNode) itemNodeInfo[key.replace('c:', '')] = spPrNode
+
+          if (key.includes('c:')) {
+            const deepNode = generalInformationAnalysis(curNode, warpObj, source)
+            if (deepNode) itemNodeInfo[key.replace('c:', '')] = deepNode
           }
-          else {
-            if (curNode && !excludeKeys.includes(key)) itemNodeInfo[key.replace('c:', '')] = curNode
+          else if (key === 'attrs') {
+            itemNodeInfo[key] = curNode
           }
+
+
+          // const objKeys = Object.keys(curNode) 
+          // if ((objKeys.length <= 2 && objKeys.includes('attrs'))) {
+          //   const spPrNode = generalInformationAnalysis(curNode, warpObj, source, rootNode, key, deepLevel + 1)
+          //   if (spPrNode) itemNodeInfo[key.replace('c:', '')] = spPrNode
+          // }
+          // else {
+          //   if (curNode && !excludeKeys.includes(key)) itemNodeInfo[key.replace('c:', '')] = curNode
+          // }
+
+
           break
       }
     }
 
   }
   // spPr.dPt.push({...itemNodeInfo})
-  spPr = itemNodeInfo
-  console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-[spPr]:', spPr)
+  const resultObjKeys = Object.keys(itemNodeInfo)
+  // console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-getLnPr-deal-[resultObjKeys]:', resultObjKeys)
+  if (resultObjKeys.length === 1 && resultObjKeys.includes('spPr')) {
+    // console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-getLnPr-deal-[resultObjKeys]:', '???')
+    spPr = itemNodeInfo['spPr']
+  }
+  else {
+    spPr = itemNodeInfo
+  } 
   return spPr
 }
 
@@ -604,6 +623,7 @@ export function getChartInfo(plotArea, warpObj, source, otherParams) {
       if (chart.areaChartPr) chart.chartPr = {...chart.chartPr, areaChartPr: chart.areaChartPr}
       if (chart.radarChartPr) chart.chartPr = {...chart.chartPr, radarChartPr: chart.radarChartPr}
       const plotAreaPr = getPlotAreaPr(plotArea[key], warpObj, source, otherParams, plotArea)
+      console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-getLnPr-【inGet】-plotAreaPr:', plotAreaPr)
       if (plotAreaPr) chart.chartPr = {...chart.chartPr, plotAreaPr}
     }
   }
@@ -757,8 +777,6 @@ function getChartTableInfo(dTableNode, warpObj, source) {
 function getPrInfo(prNode, warpObj, source, tag = 'a:') {
   if (!prNode) return
   const objKeys = Object.keys(prNode)
-  console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-[]-getPrInfo-[objKeys]:', objKeys) 
-  console.log('(00)-pptxtojson-[chartEL]:-genChart--getChartInfo-getPrInfo-[prNode]:', prNode)
   const propertySettings = {}
   let effectData = null
   const getEffectLstNode = () => {
@@ -869,6 +887,9 @@ function getPrInfo(prNode, warpObj, source, tag = 'a:') {
         result[`${key.replace('a:', '')}`] = effectLstNode
         break
       default:
+        if (key === 'attrs') {
+          result[key] = curNode
+        }
     }
   }
 
@@ -882,8 +903,6 @@ function getLnPr(prNode, node, warpObj) {
     const curNode = node[`${key}`]
     const curNodeVal = getTextByPathList(curNode, ['attrs', 'val'])
     const curNodeTypeVal = getTextByPathList(curNode, ['attrs', 'type'])
-
-    console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-getLnPr-[node,result]:-', node, '|', result)
 
     let isOnlyAttrs = true
     for (const subKey in curNode) {
@@ -906,8 +925,10 @@ function getLnPr(prNode, node, warpObj) {
         default:
       }
     }
+    else if (key === 'attrs') {
+      result[key] = curNode
+    }
   }
-  console.log('(00)-devAnalysisPPT-[chartEL]:-getPlotAreaPr:-getLnPr-[node,result]:-', node, '|', result)
   return result
 }
 
